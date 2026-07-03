@@ -57,8 +57,6 @@ async function callNvidiaCode(messages) {
         stream: false
     });
 
-    const reasoning = completion.choices[0]?.message?.reasoning_content;
-    if (reasoning) process.stdout.write(reasoning + "\n");
     return completion.choices[0]?.message?.content?.trim() || "";
 }
 
@@ -118,8 +116,6 @@ Disallowed content:
         stream: false
     });
 
-    const reasoning = completion.choices[0]?.message?.reasoning_content;
-    if (reasoning) process.stdout.write(reasoning + "\n");
     return completion.choices[0]?.message?.content?.trim() || "";
 }
 

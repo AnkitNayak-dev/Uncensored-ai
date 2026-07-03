@@ -4,7 +4,7 @@ import { IoIosSend } from "react-icons/io";
 import { IoSettingsSharp } from "react-icons/io5";
 import { IoClose } from "react-icons/io5";
 import { GridScan } from "./GridScan";
-import { HeroHighlight } from "./hero-highlight";
+import { HeroHighlight, Highlight } from "./hero-highlight";
 import { FaLinkedin, FaTwitter, FaGithub } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import { v4 as uuidv4 } from "uuid";
