@@ -54,7 +54,7 @@ async function callNvidiaCode(messages) {
         temperature: 0.2,
         top_p: 1,
         max_tokens: 4096,
-        stream: false
+        stream: true
     });
 
     return completion.choices[0]?.message?.content?.trim() || "";
@@ -112,8 +112,8 @@ Disallowed content:
         ],
         temperature: 0.7,
         top_p: 1,
-        max_tokens: 4096,
-        stream: false
+        max_tokens: 2048,
+        stream: true
     });
 
     return completion.choices[0]?.message?.content?.trim() || "";
