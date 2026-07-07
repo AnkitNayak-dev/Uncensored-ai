@@ -48,7 +48,7 @@ Return all required files.
 // LLM CALL (NVIDIA CODE)
 // =========================
 async function callNvidiaCode(messages) {
-    const completion = await openai.chat.completions.create({
+    const stream = await openai.chat.completions.create({
         model: "openai/gpt-oss-120b",
         messages: messages,
         temperature: 0.2,
@@ -57,7 +57,11 @@ async function callNvidiaCode(messages) {
         stream: true
     });
 
-    return completion.choices[0]?.message?.content?.trim() || "";
+    let text = "";
+    for await (const chunk of stream) {
+        text += chunk.choices[0]?.delta?.content || "";
+    }
+    return text.trim();
 }
 
 // =========================
@@ -102,7 +106,7 @@ Disallowed content:
 <|start|>assistant
 <|channel|>final<|message|>`;
 
-    const completion = await openai.chat.completions.create({
+    const stream = await openai.chat.completions.create({
         model: "openai/gpt-oss-120b",
         messages: [
             {
@@ -116,7 +120,11 @@ Disallowed content:
         stream: true
     });
 
-    return completion.choices[0]?.message?.content?.trim() || "";
+    let text = "";
+    for await (const chunk of stream) {
+        text += chunk.choices[0]?.delta?.content || "";
+    }
+    return text.trim();
 }
 
 // =========================
