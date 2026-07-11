@@ -1,6 +1,7 @@
 // src/app/api/route.js
 
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import OpenAI from 'openai';
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
@@ -166,28 +167,43 @@ async function handleRequest(request) {
     if (request.method === "POST") {
         try {
             const body = await request.json();
+            let newSessionId = null;
 
-            // 1. Turnstile Verification
+            // 1. Session & Turnstile Verification
             if (process.env.TURNSTILE_SECRET_KEY) {
-                const token = body.turnstileToken;
-                if (!token) return new NextResponse("Turnstile token missing", { status: 403 });
+                const cookieStore = await cookies();
+                const sessionId = cookieStore.get('cf_verified')?.value;
+                let isVerified = false;
 
-                const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/x-www-form-urlencoded",
-                    },
-                    body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${token}`,
-                });
-                
-                const verifyData = await verifyRes.json();
-                if (!verifyData.success) {
-                    return new NextResponse("Invalid Turnstile token", { status: 403 });
+                if (sessionId) {
+                    const valid = await redis.get(`session:${sessionId}`);
+                    if (valid) isVerified = true;
+                }
+
+                if (!isVerified) {
+                    const token = body.turnstileToken;
+                    if (!token) return new NextResponse("Turnstile token missing", { status: 403 });
+
+                    const verifyRes = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/x-www-form-urlencoded",
+                        },
+                        body: `secret=${process.env.TURNSTILE_SECRET_KEY}&response=${token}`,
+                    });
+                    
+                    const verifyData = await verifyRes.json();
+                    if (!verifyData.success) {
+                        return new NextResponse("Invalid Turnstile token", { status: 403 });
+                    }
+
+                    // Issue a new session valid for 24 hours
+                    newSessionId = crypto.randomUUID();
+                    await redis.set(`session:${newSessionId}`, "1", { ex: 3600 * 24 });
                 }
             }
 
-            // 2. Local Rate Limiting Removed - Now handled by Cloudflare WAF!
-            // Wait, you requested Upstash Redis, so here it is:
+            // 2. Upstash Redis Rate Limiting
             if (process.env.UPSTASH_REDIS_REST_URL) {
                 const ip = request.headers.get("x-forwarded-for") || "unknown";
                 const { success } = await ratelimit.limit(ip);
@@ -198,9 +214,20 @@ async function handleRequest(request) {
 
             if (body.messages) {
                 result = await generateText(body.messages);
-                return new NextResponse(result, {
+                const response = new NextResponse(result, {
                     headers: { "Content-Type": "text/plain" }
                 });
+
+                if (newSessionId) {
+                    response.cookies.set('cf_verified', newSessionId, { 
+                        httpOnly: true, 
+                        secure: process.env.NODE_ENV === 'production',
+                        maxAge: 3600 * 24,
+                        path: '/'
+                    });
+                }
+                
+                return response;
             }
         } catch (e) {
             // fallback to searchParams if no JSON body

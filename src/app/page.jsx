@@ -27,7 +27,7 @@ export default function Home() {
   const [isResponding, setIsResponding] = useState(false);
   const [scanPhase, setScanPhase] = useState("idle");
   const [turnstileToken, setTurnstileToken] = useState("");
-  const [turnstileKey, setTurnstileKey] = useState(0);
+  const turnstileRef = useRef(null);
 
   // ─── Settings state ───
   const [showSettings, setShowSettings] = useState(false);
@@ -96,6 +96,15 @@ export default function Home() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ messages: apiMessages, turnstileToken })
       });
+
+      if (!response.ok) {
+        if (response.status === 403) {
+          turnstileRef.current?.reset();
+          setTurnstileToken("");
+        }
+        throw new Error(await response.text());
+      }
+
       const textResponse = await response.text();
 
       if (streaming) {
@@ -132,9 +141,7 @@ export default function Home() {
         { type: "ai", text: "Something went wrong. Please try again." },
       ]);
     } finally {
-      // Force Turnstile to remount and generate a new token
-      setTurnstileKey(prev => prev + 1);
-      setTurnstileToken(""); // clear old token
+      // Session-based: No need to reset Turnstile on every single message
     }
   };
 
@@ -403,7 +410,7 @@ export default function Home() {
               {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
                 <div className="mt-3 flex justify-center">
                   <Turnstile
-                    key={turnstileKey}
+                    ref={turnstileRef}
                     siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
                     onSuccess={(token) => setTurnstileToken(token)}
                     options={{ theme: 'dark' }}
@@ -582,7 +589,7 @@ export default function Home() {
             <>
               <div style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', height: 0, overflow: 'hidden' }}>
                 <Turnstile
-                  key={turnstileKey}
+                  ref={turnstileRef}
                   siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
                   onSuccess={(token) => setTurnstileToken(token)}
                   options={{ theme: 'dark' }}
