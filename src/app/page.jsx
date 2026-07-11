@@ -344,164 +344,91 @@ export default function Home() {
         animationsEnabled ? (
           <HeroHighlight className="relative z-10">
             <div className="flex-1 flex flex-col items-center justify-center text-center px-4 transition-all duration-500 relative z-20 font-mono">
-              {animationsEnabled ? (
-                <motion.h1
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: [20, -5, 0] }}
-                  transition={{ duration: 0.5, ease: [0.4, 0.0, 0.2, 1] }}
-                  className="relative mb-8 z-10 text-5xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-600 text-center font-sans font-bold"
-                >
-                  What can I help with?
-                </motion.h1>
-              ) : (
-                <h1 className="relative mb-8 z-10 text-5xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-600 text-center font-sans font-bold">
-                  What can I help with?
-                </h1>
-              )}
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: [20, -5, 0] }}
+                transition={{ duration: 0.5, ease: [0.4, 0.0, 0.2, 1] }}
+                className="relative mb-8 z-10 text-5xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-600 text-center font-sans font-bold"
+              >
+                What can I help with?
+              </motion.h1>
 
-              {animationsEnabled ? (
-                <motion.p
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: [20, -5, 0] }}
-                  transition={{ duration: 1, ease: [0.4, 0.0, 0.2, 1] }}
-                  className="text-lg text-gray-400"
-                >
-                  Powered by the{" "}
-                  <Highlight className="text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 120B</Highlight> API.
-                  It delivers advanced, context-aware, and human-like
-                  responses <br /> for a wide range of AI applications, rivaling
-                  the capabilities of top-tier models in both
-                  performance and versatility.
-                </motion.p>
-              ) : (
-                <p className="text-lg text-gray-400">
-                  Powered by the{" "}
-                  <Highlight className="text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 120B</Highlight> API.
-                  It delivers advanced, context-aware, and human-like
-                  responses <br /> for a wide range of AI applications, rivaling
-                  the capabilities of top-tier models in both
-                  performance and versatility.
-                </p>
-              )}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: [20, -5, 0] }}
+                transition={{ duration: 1, ease: [0.4, 0.0, 0.2, 1] }}
+                className="text-lg text-gray-400"
+              >
+                Powered by the{" "}
+                <Highlight className="text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 120B</Highlight> API.
+                It delivers advanced, context-aware, and human-like
+                responses <br /> for a wide range of AI applications, rivaling
+                the capabilities of top-tier models in both
+                performance and versatility.
+              </motion.p>
 
-              {animationsEnabled ? (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: [20, -5, 0] }}
-                  transition={{ duration: 1.5, ease: [0.4, 0.0, 0.2, 1] }}
-                  className="flex flex-col items-center gap-3 w-full max-w-xl mt-6"
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: [20, -5, 0] }}
+                transition={{ duration: 1.5, ease: [0.4, 0.0, 0.2, 1] }}
+                className="flex items-center gap-3 w-full max-w-xl mt-6"
+              >
+                <HoverBorderGradient
+                  containerClassName="rounded-full flex-1 !w-full"
+                  as="div"
+                  duration={1}
+                  className="flex items-center w-full !px-0 !py-0"
                 >
-                  <div className="flex items-center gap-3 w-full">
-                    <HoverBorderGradient
-                      containerClassName="rounded-full flex-1 !w-full"
-                      as="div"
-                      duration={1}
-                      className="flex items-center w-full !px-0 !py-0"
-                    >
-                      <input
-                        type="text"
-                        placeholder="Message GPT-OSS..."
-                        value={userInput}
-                        onChange={(e) => setUserInput(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        className="w-full px-5 py-4 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
-                      />
-                    </HoverBorderGradient>
-                    <HoverBorderGradient
-                      containerClassName="rounded-full"
-                      as="button"
-                      duration={1}
-                      onClick={fetchResponse}
-                      className="flex items-center justify-center !px-4 !py-3.5"
-                    >
-                      <IoIosSend size={24} className="text-white" />
-                    </HoverBorderGradient>
-                  </div>
-                  {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-                    <div className="mt-3 flex justify-center">
-                      <Turnstile
-                        key={turnstileKey}
-                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                        onSuccess={(token) => setTurnstileToken(token)}
-                        options={{ theme: 'dark' }}
-                      />
-                    </div>
-                  )}
-                </motion.div>
-              ) : (
-                <div className="flex items-center gap-3 w-full max-w-xl mt-6">
-                  <HoverBorderGradient
-                    containerClassName="rounded-full flex-1 !w-full"
-                    as="div"
-                    duration={1}
-                    className="flex items-center w-full !px-0 !py-0"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Message GPT-OSS..."
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      className="w-full px-5 py-4 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
-                    />
-                  </HoverBorderGradient>
-                  <HoverBorderGradient
-                    containerClassName="rounded-full"
-                    as="button"
-                    duration={1}
-                    onClick={fetchResponse}
-                    className="flex items-center justify-center !px-4 !py-3.5"
-                  >
-                    <IoIosSend size={24} className="text-white" />
-                  </HoverBorderGradient>
+                  <input
+                    type="text"
+                    placeholder="Message GPT-OSS..."
+                    value={userInput}
+                    onChange={(e) => setUserInput(e.target.value)}
+                    onKeyDown={handleKeyPress}
+                    className="w-full px-5 py-4 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
+                  />
+                </HoverBorderGradient>
+                <HoverBorderGradient
+                  containerClassName="rounded-full"
+                  as="button"
+                  duration={1}
+                  onClick={fetchResponse}
+                  className="flex items-center justify-center !px-4 !py-3.5"
+                >
+                  <IoIosSend size={24} className="text-white" />
+                </HoverBorderGradient>
+              </motion.div>
+
+              {/* Turnstile widget under chat bar */}
+              {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                <div className="mt-3 flex justify-center">
+                  <Turnstile
+                    key={turnstileKey}
+                    siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                    onSuccess={(token) => setTurnstileToken(token)}
+                    options={{ theme: 'dark' }}
+                  />
                 </div>
-
-                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-                  <div className="mt-3 flex justify-center">
-                    <Turnstile
-                      key={turnstileKey}
-                      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
-                      onSuccess={(token) => setTurnstileToken(token)}
-                      options={{ theme: 'dark' }}
-                    />
-                  </div>
-                )}
               )}
 
-              {animationsEnabled ? (
-                <motion.nav
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: [20, -5, 0] }}
-                  transition={{ duration: 2, ease: [0.4, 0.0, 0.2, 1] }}
-                  className="flex flex-row m-8 items-center gap-8"
-                >
-                  {footerLinks.map((link, index) => (
-                    <a
-                      href={link.href}
-                      key={index}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 transform hover:scale-150 transition-transform duration-300 ease-in-out"
-                    >
-                      <span>{link.icon}</span>
-                    </a>
-                  ))}
-                </motion.nav>
-              ) : (
-                <nav className="flex flex-row m-8 items-center gap-8">
-                  {footerLinks.map((link, index) => (
-                    <a
-                      href={link.href}
-                      key={index}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1.5 transform hover:scale-150 transition-transform duration-300 ease-in-out"
-                    >
-                      <span>{link.icon}</span>
-                    </a>
-                  ))}
-                </nav>
-              )}
+              <motion.nav
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: [20, -5, 0] }}
+                transition={{ duration: 2, ease: [0.4, 0.0, 0.2, 1] }}
+                className="flex flex-row m-8 items-center gap-8"
+              >
+                {footerLinks.map((link, index) => (
+                  <a
+                    href={link.href}
+                    key={index}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 transform hover:scale-150 transition-transform duration-300 ease-in-out"
+                  >
+                    <span>{link.icon}</span>
+                  </a>
+                ))}
+              </motion.nav>
             </div>
           </HeroHighlight>
         ) : (
