@@ -27,6 +27,7 @@ export default function Home() {
   const [isResponding, setIsResponding] = useState(false);
   const [scanPhase, setScanPhase] = useState("idle");
   const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileKey, setTurnstileKey] = useState(0);
 
   // ─── Settings state ───
   const [showSettings, setShowSettings] = useState(false);
@@ -130,6 +131,10 @@ export default function Home() {
         ...prev,
         { type: "ai", text: "Something went wrong. Please try again." },
       ]);
+    } finally {
+      // Force Turnstile to remount and generate a new token
+      setTurnstileKey(prev => prev + 1);
+      setTurnstileToken(""); // clear old token
     }
   };
 
@@ -384,32 +389,44 @@ export default function Home() {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: [20, -5, 0] }}
                   transition={{ duration: 1.5, ease: [0.4, 0.0, 0.2, 1] }}
-                  className="flex items-center gap-3 w-full max-w-xl mt-6"
+                  className="flex flex-col items-center gap-3 w-full max-w-xl mt-6"
                 >
-                  <HoverBorderGradient
-                    containerClassName="rounded-full flex-1 !w-full"
-                    as="div"
-                    duration={1}
-                    className="flex items-center w-full !px-0 !py-0"
-                  >
-                    <input
-                      type="text"
-                      placeholder="Message GPT-OSS..."
-                      value={userInput}
-                      onChange={(e) => setUserInput(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      className="w-full px-5 py-3.5 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-base"
-                    />
-                  </HoverBorderGradient>
-                  <HoverBorderGradient
-                    containerClassName="rounded-full"
-                    as="button"
-                    duration={1}
-                    onClick={fetchResponse}
-                    className="flex items-center justify-center !px-4 !py-3.5"
-                  >
-                    <IoIosSend size={24} className="text-white" />
-                  </HoverBorderGradient>
+                  <div className="flex items-center gap-3 w-full">
+                    <HoverBorderGradient
+                      containerClassName="rounded-full flex-1 !w-full"
+                      as="div"
+                      duration={1}
+                      className="flex items-center w-full !px-0 !py-0"
+                    >
+                      <input
+                        type="text"
+                        placeholder="Message GPT-OSS..."
+                        value={userInput}
+                        onChange={(e) => setUserInput(e.target.value)}
+                        onKeyDown={handleKeyPress}
+                        className="w-full px-5 py-4 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
+                      />
+                    </HoverBorderGradient>
+                    <HoverBorderGradient
+                      containerClassName="rounded-full"
+                      as="button"
+                      duration={1}
+                      onClick={fetchResponse}
+                      className="flex items-center justify-center !px-4 !py-3.5"
+                    >
+                      <IoIosSend size={24} className="text-white" />
+                    </HoverBorderGradient>
+                  </div>
+                  {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                    <div className="mt-3 flex justify-center">
+                      <Turnstile
+                        key={turnstileKey}
+                        siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                        onSuccess={(token) => setTurnstileToken(token)}
+                        options={{ theme: 'dark' }}
+                      />
+                    </div>
+                  )}
                 </motion.div>
               ) : (
                 <div className="flex items-center gap-3 w-full max-w-xl mt-6">
@@ -425,7 +442,7 @@ export default function Home() {
                       value={userInput}
                       onChange={(e) => setUserInput(e.target.value)}
                       onKeyDown={handleKeyPress}
-                      className="w-full px-5 py-3.5 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-base"
+                      className="w-full px-5 py-4 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
                     />
                   </HoverBorderGradient>
                   <HoverBorderGradient
@@ -438,6 +455,17 @@ export default function Home() {
                     <IoIosSend size={24} className="text-white" />
                   </HoverBorderGradient>
                 </div>
+
+                {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+                  <div className="mt-3 flex justify-center">
+                    <Turnstile
+                      key={turnstileKey}
+                      siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                      onSuccess={(token) => setTurnstileToken(token)}
+                      options={{ theme: 'dark' }}
+                    />
+                  </div>
+                )}
               )}
 
               {animationsEnabled ? (
@@ -621,17 +649,26 @@ export default function Home() {
               <IoIosSend size={20} />
             </button>
           </div>
-        </div>
-      )}
 
-      {/* ─── Global Turnstile Widget ─── */}
-      {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-        <div className="flex justify-center p-2 bg-[#0a0a0a] z-50">
-          <Turnstile 
-            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} 
-            onSuccess={(token) => setTurnstileToken(token)} 
-            options={{ theme: 'dark' }}
-          />
+          {/* ─── Chat Turnstile: hidden widget + inline badge ─── */}
+          {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+            <>
+              <div className="hidden">
+                <Turnstile
+                  key={turnstileKey}
+                  siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
+                  onSuccess={(token) => setTurnstileToken(token)}
+                  options={{ theme: 'dark' }}
+                />
+              </div>
+              <div className="max-w-3xl mx-auto flex justify-center mt-1.5">
+                <span className="flex items-center gap-1.5 text-[11px] text-gray-600">
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 6.5l-4 4a.75.75 0 01-1.06 0l-2-2a.75.75 0 111.06-1.06L7 8.94l3.47-3.47a.75.75 0 111.06 1.06z" fill="#f38020"/></svg>
+                  Protected by Cloudflare
+                </span>
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>
