@@ -580,7 +580,7 @@ export default function Home() {
           {/* ─── Chat Turnstile: hidden widget + inline badge ─── */}
           {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
             <>
-              <div className="hidden">
+              <div style={{ position: 'absolute', opacity: 0, pointerEvents: 'none', height: 0, overflow: 'hidden' }}>
                 <Turnstile
                   key={turnstileKey}
                   siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
