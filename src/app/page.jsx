@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { v4 as uuidv4 } from "uuid";
 import { HoverBorderGradient } from "./hover-border-gradient";
 import { MarkdownRenderer } from "./MarkdownRenderer";
+import { Turnstile } from '@marsidev/react-turnstile';
 
 // ─── Font size map ───
 const FONT_SIZES = { small: "13px", medium: "15px", large: "17px" };
@@ -25,6 +26,7 @@ export default function Home() {
   const [userId, setUserId] = useState(null);
   const [isResponding, setIsResponding] = useState(false);
   const [scanPhase, setScanPhase] = useState("idle");
+  const [turnstileToken, setTurnstileToken] = useState("");
 
   // ─── Settings state ───
   const [showSettings, setShowSettings] = useState(false);
@@ -91,7 +93,7 @@ export default function Home() {
       const response = await fetch('/api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages })
+        body: JSON.stringify({ messages: apiMessages, turnstileToken })
       });
       const textResponse = await response.text();
 
@@ -619,6 +621,17 @@ export default function Home() {
               <IoIosSend size={20} />
             </button>
           </div>
+        </div>
+      )}
+
+      {/* ─── Global Turnstile Widget ─── */}
+      {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
+        <div className="flex justify-center p-2 bg-[#0a0a0a] z-50">
+          <Turnstile 
+            siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY} 
+            onSuccess={(token) => setTurnstileToken(token)} 
+            options={{ theme: 'dark' }}
+          />
         </div>
       )}
     </div>
