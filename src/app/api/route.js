@@ -83,7 +83,7 @@ async function callNvidiaCode(messages) {
 // =========================
 // LLM CALL (NVIDIA TEXT)
 // =========================
-async function callNvidiaText(input) {
+async function streamNvidiaText(input) {
     const userInput = Array.isArray(input)
         ? input.map(m => m.content).join("\n")
         : input;
@@ -122,39 +122,30 @@ Disallowed content:
 <|start|>assistant
 <|channel|>final<|message|>`;
 
-    const stream = await openai.chat.completions.create({
+    const nvidiaStream = await openai.chat.completions.create({
         model: "openai/gpt-oss-120b",
-        messages: [
-            {
-                role: "system",
-                content: prompt
-            }
-        ],
+        messages: [{ role: "system", content: prompt }],
         temperature: 0.7,
         top_p: 1,
         max_tokens: 2048,
         stream: true
     });
 
-    let text = "";
-    for await (const chunk of stream) {
-        text += chunk.choices[0]?.delta?.content || "";
-    }
-    text = text.trim();
-
-    // Ensure the message does not end mid-sentence if cut off by token limit
-    if (!/[.!?]$/.test(text)) {
-        const lastPunctuation = Math.max(
-            text.lastIndexOf('.'),
-            text.lastIndexOf('!'),
-            text.lastIndexOf('?')
-        );
-        if (lastPunctuation !== -1) {
-            text = text.substring(0, lastPunctuation + 1);
+    const encoder = new TextEncoder();
+    const readable = new ReadableStream({
+        async start(controller) {
+            try {
+                for await (const chunk of nvidiaStream) {
+                    const token = chunk.choices[0]?.delta?.content || "";
+                    if (token) controller.enqueue(encoder.encode(token));
+                }
+            } finally {
+                controller.close();
+            }
         }
-    }
+    });
 
-    return text;
+    return readable;
 }
 
 // =========================
@@ -188,10 +179,6 @@ function formatFiles(text) {
 async function generateCode(input) {
     const raw = await callNvidiaCode(buildPrompt(input));
     return formatFiles(raw);
-}
-
-async function generateText(input) {
-    return await callNvidiaText(input);
 }
 
 
@@ -250,21 +237,17 @@ async function handleRequest(request) {
             }
 
             if (body.messages) {
-                result = await generateText(body.messages);
-                const response = new NextResponse(result, {
-                    headers: { "Content-Type": "text/plain" }
-                });
-
+                const readableStream = await streamNvidiaText(body.messages);
+                const headers = {
+                    "Content-Type": "text/plain; charset=utf-8",
+                    "X-Content-Type-Options": "nosniff",
+                    "Cache-Control": "no-cache",
+                    "Transfer-Encoding": "chunked",
+                };
                 if (newSessionId) {
-                    response.cookies.set('cf_verified', newSessionId, {
-                        httpOnly: true,
-                        secure: process.env.NODE_ENV === 'production',
-                        maxAge: 3600 * 24,
-                        path: '/'
-                    });
+                    headers["Set-Cookie"] = `cf_verified=${newSessionId}; HttpOnly; Path=/; Max-Age=${3600 * 24}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
                 }
-
-                return response;
+                return new Response(readableStream, { status: 200, headers });
             }
         } catch (e) {
             // fallback to searchParams if no JSON body

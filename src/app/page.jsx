@@ -105,33 +105,45 @@ export default function Home() {
         throw new Error(await response.text());
       }
 
-      const textResponse = await response.text();
+      // ── Real streaming: read tokens as they arrive ──
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
 
-      if (streaming) {
-        // Typing effect
-        setScanPhase("typing");
-        setMessages((prev) => [
-          ...prev,
-          {
+      // Add an empty AI message to start filling in
+      setScanPhase("typing");
+      setMessages((prev) => [
+        ...prev,
+        { type: "ai", text: "", rawText: "", isTyping: true },
+      ]);
+
+      let fullText = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const token = decoder.decode(value, { stream: true });
+        fullText += token;
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
             type: "ai",
-            text: "",
-            rawText: textResponse || "Sorry, I couldn't respond.",
+            text: fullText,
+            rawText: fullText,
             isTyping: true,
-          },
-        ]);
-      } else {
-        // Instant — no streaming
-        setScanPhase("idle");
-        setIsResponding(false);
-        setMessages((prev) => [
-          ...prev,
-          {
-            type: "ai",
-            text: textResponse || "Sorry, I couldn't respond.",
-            isTyping: false,
-          },
-        ]);
+          };
+          return updated;
+        });
+        // Auto-scroll as tokens arrive
+        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }
+
+      // Mark done
+      setMessages((prev) => {
+        const updated = [...prev];
+        updated[updated.length - 1].isTyping = false;
+        return updated;
+      });
+      setScanPhase("idle");
+      setIsResponding(false);
     } catch (error) {
       console.error("Error fetching response:", error);
       setIsResponding(false);
@@ -144,6 +156,7 @@ export default function Home() {
       // Session-based: No need to reset Turnstile on every single message
     }
   };
+
 
   // Typing effect
   useEffect(() => {
@@ -210,7 +223,7 @@ export default function Home() {
   const currentFontSize = FONT_SIZES[fontSize] || "15px";
 
   return (
-    <div className="flex flex-col h-[100dvh] text-white bg-[#0a0a0a]">
+    <div className="flex flex-col h-[100dvh] text-white bg-[#0a0a0a] overflow-hidden">
 
       {/* ─── Gear Icon (always visible) ─── */}
       <button
@@ -527,7 +540,7 @@ export default function Home() {
       {/* ─── Chat Messages ─── */}
       {hasInteracted && (
         <div className="flex-1 overflow-y-auto px-4 py-6 flex justify-center relative font-sans z-10 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          <div className="w-full max-w-3xl space-y-6 pt-4 pb-6">
+          <div className="w-full max-w-3xl space-y-6 pt-4 pb-28">
             {messages.map((msg, idx) => (
               <div
                 key={idx}
@@ -568,7 +581,7 @@ export default function Home() {
 
       {/* ─── Input Bar ─── */}
       {hasInteracted && (
-        <div className="w-full bg-gradient-to-t from-black via-[#0a0a0a] to-transparent pt-12 pb-4 px-4 flex-shrink-0 z-10 font-sans absolute bottom-0 left-0">
+        <div className="w-full bg-gradient-to-t from-black via-[#0a0a0a]/95 to-transparent pt-8 pb-4 px-4 flex-shrink-0 z-20 font-sans">
           <div className="max-w-3xl mx-auto flex items-center gap-3">
             <div className="flex-1 flex items-center bg-[#141420]/80 backdrop-blur-md border border-[#2a2a3e]/80 rounded-2xl overflow-hidden focus-within:border-[#5a5a8e] focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-lg shadow-black/20">
               <input
