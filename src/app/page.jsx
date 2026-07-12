@@ -136,10 +136,25 @@ export default function Home() {
         chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }
 
-      // Mark done
+      // Mark done — trim to last complete sentence if cut off at token limit
+      const sentenceEnd = /[.!?。！？]/;
+      if (!sentenceEnd.test(fullText.slice(-1))) {
+        const lastPunct = Math.max(
+          fullText.lastIndexOf('.'),
+          fullText.lastIndexOf('!'),
+          fullText.lastIndexOf('?')
+        );
+        if (lastPunct !== -1) fullText = fullText.substring(0, lastPunct + 1);
+      }
+
       setMessages((prev) => {
         const updated = [...prev];
-        updated[updated.length - 1].isTyping = false;
+        updated[updated.length - 1] = {
+          type: "ai",
+          text: fullText,
+          rawText: fullText,
+          isTyping: false,
+        };
         return updated;
       });
       setScanPhase("idle");
