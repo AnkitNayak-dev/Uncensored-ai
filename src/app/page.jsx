@@ -210,7 +210,7 @@ export default function Home() {
   const currentFontSize = FONT_SIZES[fontSize] || "15px";
 
   return (
-    <div className="flex flex-col h-screen text-white bg-[#0a0a0a]">
+    <div className="flex flex-col h-[100dvh] text-white bg-[#0a0a0a]">
 
       {/* ─── Gear Icon (always visible) ─── */}
       <button
@@ -238,14 +238,14 @@ export default function Home() {
             {/* Modal wrapper - flex center */}
             <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
               <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.95 }}
-                transition={{ duration: 0.2, ease: "easeOut" }}
-                className="w-full max-w-md bg-[#111118] border border-[#2a2a3e] rounded-2xl shadow-2xl overflow-hidden pointer-events-auto"
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                transition={{ duration: 0.3, type: "spring", bounce: 0.25 }}
+                className="w-full max-w-md bg-[#111118]/90 backdrop-blur-xl border border-[#2a2a3e]/50 rounded-3xl shadow-2xl overflow-hidden pointer-events-auto shadow-black/50"
               >
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a3e]">
+                <div className="flex items-center justify-between px-6 py-5 border-b border-[#2a2a3e]/50 bg-gradient-to-b from-white/[0.05] to-transparent">
                   <h2 className="text-lg font-semibold text-white">Settings</h2>
                   <button
                     onClick={() => setShowSettings(false)}
@@ -300,14 +300,14 @@ export default function Home() {
                   {/* Font Size */}
                   <div>
                     <p className="text-[15px] text-white font-medium mb-3">Font Size</p>
-                    <div className="flex gap-2">
-                      {["small", "medium", "large"].map((size) => (
+                    <div className="grid grid-cols-3 gap-2">
+                      {Object.keys(FONT_SIZES).map((size) => (
                         <button
                           key={size}
                           onClick={() => setFontSize(size)}
-                          className={`flex-1 py-2 rounded-lg text-[13px] font-medium capitalize transition-all duration-200 ${fontSize === size
-                            ? "bg-purple-600 text-white"
-                            : "bg-[#1a1a2e] text-gray-400 hover:text-white hover:bg-[#252540]"
+                          className={`py-2.5 rounded-xl text-sm font-medium transition-all ${fontSize === size
+                              ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/20"
+                              : "bg-[#1a1a2e] text-gray-400 hover:bg-[#2a2a3e] hover:text-white"
                             }`}
                         >
                           {size}
@@ -319,14 +319,14 @@ export default function Home() {
                   {/* Typing Speed */}
                   <div>
                     <p className="text-[15px] text-white font-medium mb-3">Typing Speed</p>
-                    <div className="flex gap-2">
-                      {["slow", "normal", "fast"].map((speed) => (
+                    <div className="grid grid-cols-3 gap-2">
+                      {Object.keys(TYPING_SPEEDS).map((speed) => (
                         <button
                           key={speed}
                           onClick={() => setTypingSpeed(speed)}
-                          className={`flex-1 py-2 rounded-lg text-[13px] font-medium capitalize transition-all duration-200 ${typingSpeed === speed
-                            ? "bg-purple-600 text-white"
-                            : "bg-[#1a1a2e] text-gray-400 hover:text-white hover:bg-[#252540]"
+                          className={`py-2.5 rounded-xl text-sm font-medium transition-all ${typingSpeed === speed
+                              ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/20"
+                              : "bg-[#1a1a2e] text-gray-400 hover:bg-[#2a2a3e] hover:text-white"
                             }`}
                         >
                           {speed}
@@ -355,9 +355,9 @@ export default function Home() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: [20, -5, 0] }}
                 transition={{ duration: 0.5, ease: [0.4, 0.0, 0.2, 1] }}
-                className="relative mb-8 z-10 text-5xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-600 text-center font-sans font-bold"
+                className="relative mb-8 z-10 text-5xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-600 text-center font-sans font-bold py-2"
               >
-                What can I help with?
+                Ask anything. We don't judge.
               </motion.h1>
 
               <motion.p
@@ -366,12 +366,9 @@ export default function Home() {
                 transition={{ duration: 1, ease: [0.4, 0.0, 0.2, 1] }}
                 className="text-lg text-gray-400"
               >
+                No Login. No Signup. 100% Free. No Logs. Completely Anonymous.<br />
                 Powered by the{" "}
                 <Highlight className="text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 120B</Highlight> API.
-                It delivers advanced, context-aware, and human-like
-                responses <br /> for a wide range of AI applications, rivaling
-                the capabilities of top-tier models in both
-                performance and versatility.
               </motion.p>
 
               <motion.div
@@ -392,6 +389,11 @@ export default function Home() {
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
                     onKeyDown={handleKeyPress}
+                    onFocus={(e) => {
+                      setTimeout(() => {
+                        e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }, 300);
+                    }}
                     className="w-full px-5 py-4 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
                   />
                 </HoverBorderGradient>
@@ -408,7 +410,7 @@ export default function Home() {
 
               {/* Turnstile widget under chat bar */}
               {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-                <div className="mt-3 flex justify-center">
+                <div className={`mt-3 flex justify-center transition-all duration-500 ${turnstileToken ? 'opacity-0 pointer-events-none absolute h-0 overflow-hidden' : 'opacity-100'}`}>
                   <Turnstile
                     ref={turnstileRef}
                     siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
@@ -439,18 +441,15 @@ export default function Home() {
             </div>
           </HeroHighlight>
         ) : (
-          <div className="relative h-screen flex items-center bg-black justify-center w-screen">
+          <div className="relative h-[100dvh] flex items-center bg-black justify-center w-screen">
             <div className="flex-1 flex flex-col items-center justify-center text-center px-4 relative z-20 font-mono">
-              <h1 className="relative mb-8 z-10 text-5xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-600 text-center font-sans font-bold">
-                What can I help with?
+              <h1 className="relative mb-8 z-10 text-5xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-600 text-center font-sans font-bold py-2">
+                Ask anything. We don't judge.
               </h1>
               <p className="text-lg text-gray-400">
+                No Login. No Signup. 100% Free. No Logs. Completely Anonymous.<br />
                 Powered by the{" "}
                 <span className="inline-block pb-1 px-1 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 120B</span> API.
-                It delivers advanced, context-aware, and human-like
-                responses <br /> for a wide range of AI applications, rivaling
-                the capabilities of top-tier models in both
-                performance and versatility.
               </p>
               <div className="flex items-center gap-3 w-full max-w-xl mt-6">
                 <HoverBorderGradient
@@ -465,6 +464,11 @@ export default function Home() {
                     value={userInput}
                     onChange={(e) => setUserInput(e.target.value)}
                     onKeyDown={handleKeyPress}
+                    onFocus={(e) => {
+                      setTimeout(() => {
+                        e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                      }, 300);
+                    }}
                     className="w-full px-5 py-3.5 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-base"
                   />
                 </HoverBorderGradient>
@@ -532,9 +536,9 @@ export default function Home() {
               >
                 <div
                   style={{ fontSize: currentFontSize }}
-                  className={`leading-relaxed break-words ${msg.type === "user"
-                    ? "bg-[#1a1a2e] text-gray-100 px-5 py-3 rounded-2xl rounded-tr-sm max-w-[75%]"
-                    : "text-gray-200 flex-1 min-w-0"
+                  className={`leading-relaxed break-words shadow-sm ${msg.type === "user"
+                    ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-5 py-3 rounded-2xl rounded-tr-sm max-w-[85%] md:max-w-[75%] shadow-lg shadow-indigo-500/10"
+                    : "text-gray-200 flex-1 min-w-0 md:pr-12"
                     }`}
                 >
                   {msg.type === "user" ? (
@@ -564,21 +568,30 @@ export default function Home() {
 
       {/* ─── Input Bar ─── */}
       {hasInteracted && (
-        <div className="w-full bg-[#0a0a0a] border-t border-[#1e1e2e] p-4 flex-shrink-0 z-10 font-sans">
+        <div className="w-full bg-gradient-to-t from-black via-[#0a0a0a] to-transparent pt-12 pb-4 px-4 flex-shrink-0 z-10 font-sans absolute bottom-0 left-0">
           <div className="max-w-3xl mx-auto flex items-center gap-3">
-            <div className="flex-1 flex items-center bg-[#141420] border border-[#2a2a3e] rounded-full overflow-hidden focus-within:border-[#4a4a6e] transition-colors">
+            <div className="flex-1 flex items-center bg-[#141420]/80 backdrop-blur-md border border-[#2a2a3e]/80 rounded-2xl overflow-hidden focus-within:border-[#5a5a8e] focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-lg shadow-black/20">
               <input
                 type="text"
                 placeholder="Message GPT-OSS..."
                 value={userInput}
                 onChange={(e) => setUserInput(e.target.value)}
                 onKeyDown={handleKeyPress}
+                onFocus={(e) => {
+                  setTimeout(() => {
+                    e.target.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }, 300);
+                }}
                 className="w-full px-5 py-3.5 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
               />
-            </div>
+                <div className="text-xs text-gray-500 font-medium pr-4 hidden sm:block whitespace-nowrap">
+                  Press Enter ↵
+                </div>
+              </div>
             <button
               onClick={fetchResponse}
-              className="flex items-center justify-center w-12 h-12 rounded-full bg-[#141420] border border-[#2a2a3e] hover:border-[#4a4a6e] hover:bg-[#1e1e30] transition-all duration-200 text-gray-300 hover:text-white"
+              disabled={isResponding || !userInput.trim()}
+              className="w-[50px] h-[50px] flex items-center justify-center bg-gradient-to-tr from-indigo-500 to-purple-500 hover:from-indigo-400 hover:to-purple-400 disabled:from-[#1a1a2e] disabled:to-[#1a1a2e] disabled:text-gray-600 rounded-full text-white transition-all shadow-lg shadow-indigo-500/20 disabled:shadow-none transform hover:scale-105 active:scale-95 disabled:scale-100"
             >
               <IoIosSend size={20} />
             </button>

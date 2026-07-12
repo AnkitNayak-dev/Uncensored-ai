@@ -208,7 +208,7 @@ async function handleRequest(request) {
                 const ip = request.headers.get("x-forwarded-for") || "unknown";
                 const { success } = await ratelimit.limit(ip);
                 if (!success) {
-                    return new NextResponse("Too Many Requests", { status: 429 });
+                    return new NextResponse("Bro calm down! You can only request 5 times per minute. Tokens don't grow on trees, let everyone use it since it's a free platform! 🌴", { status: 429 });
                 }
             }
 
