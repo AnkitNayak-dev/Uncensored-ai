@@ -16,15 +16,20 @@ const openai = new OpenAI({
 // =========================
 // SECURITY
 // =========================
-const redis = new Redis({
-    url: process.env.UPSTASH_REDIS_REST_URL || '',
-    token: process.env.UPSTASH_REDIS_REST_TOKEN || '',
-});
-
-const ratelimit = new Ratelimit({
-    redis: redis,
-    limiter: Ratelimit.slidingWindow(5, "1 m"),
-});
+let _ratelimit = null;
+function getRateLimiter() {
+    if (!_ratelimit && process.env.UPSTASH_REDIS_REST_URL) {
+        const redis = new Redis({
+            url: process.env.UPSTASH_REDIS_REST_URL,
+            token: process.env.UPSTASH_REDIS_REST_TOKEN,
+        });
+        _ratelimit = new Ratelimit({
+            redis: redis,
+            limiter: Ratelimit.slidingWindow(5, "1 m"),
+        });
+    }
+    return _ratelimit;
+}
 
 // =========================
 // UNIVERSAL PROMPT
@@ -69,7 +74,7 @@ async function callNvidiaCode(messages) {
         messages: messages,
         temperature: 0.2,
         top_p: 1,
-        max_tokens: 4096,
+        max_tokens: 2048,
         stream: true
     });
 
@@ -132,7 +137,7 @@ Disallowed content:
         messages,
         temperature: 0.7,
         top_p: 1,
-        max_tokens: 1024,
+        max_tokens: 4096,
         stream: true
     });
 
@@ -205,7 +210,11 @@ async function handleRequest(request) {
                 const sessionId = cookieStore.get('cf_verified')?.value;
                 let isVerified = false;
 
-                if (sessionId) {
+                if (sessionId && process.env.UPSTASH_REDIS_REST_URL) {
+                    const redis = new Redis({
+                        url: process.env.UPSTASH_REDIS_REST_URL,
+                        token: process.env.UPSTASH_REDIS_REST_TOKEN,
+                    });
                     const valid = await redis.get(`session:${sessionId}`);
                     if (valid) isVerified = true;
                 }
@@ -229,17 +238,25 @@ async function handleRequest(request) {
 
                     // Issue a new session valid for 24 hours
                     newSessionId = crypto.randomUUID();
-                    await redis.set(`session:${newSessionId}`, "1", { ex: 3600 * 24 });
+                    if (process.env.UPSTASH_REDIS_REST_URL) {
+                        const redis = new Redis({
+                            url: process.env.UPSTASH_REDIS_REST_URL,
+                            token: process.env.UPSTASH_REDIS_REST_TOKEN,
+                        });
+                        await redis.set(`session:${newSessionId}`, "1", { ex: 3600 * 24 });
+                    }
                 }
             }
 
             // 2. Upstash Redis Rate Limiting
-            if (process.env.UPSTASH_REDIS_REST_URL) {
+            const ratelimit = getRateLimiter();
+            if (ratelimit) {
                 // cf-connecting-ip is set by Cloudflare and is always the real client IP
                 // x-forwarded-for can be a comma-separated list; take only the first entry
                 const rawIp =
                     request.headers.get("cf-connecting-ip") ||
                     (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
+                    request.ip ||
                     "unknown";
                 const { success } = await ratelimit.limit(rawIp);
                 if (!success) {
