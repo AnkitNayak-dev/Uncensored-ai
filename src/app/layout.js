@@ -4,8 +4,8 @@ import "./globals.css";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "GPT-OSS 120B",
-  description: "A Next.js API powered by GPT-OSS 120B via Groq, delivering advanced context-aware AI responses with blazing speed.",
+  title: "Uncensored AI",
+  description: "Free, uncensored AI with no login, no signup, and no logs. Powered by GPT-OSS 120B. Ask anything — we don't judge.",
   icons: {
     icon: "/favicon.ico",
   },
