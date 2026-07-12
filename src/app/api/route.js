@@ -140,7 +140,21 @@ Disallowed content:
     for await (const chunk of stream) {
         text += chunk.choices[0]?.delta?.content || "";
     }
-    return text.trim();
+    text = text.trim();
+
+    // Ensure the message does not end mid-sentence if cut off by token limit
+    if (!/[.!?]$/.test(text)) {
+        const lastPunctuation = Math.max(
+            text.lastIndexOf('.'),
+            text.lastIndexOf('!'),
+            text.lastIndexOf('?')
+        );
+        if (lastPunctuation !== -1) {
+            text = text.substring(0, lastPunctuation + 1);
+        }
+    }
+
+    return text;
 }
 
 // =========================
