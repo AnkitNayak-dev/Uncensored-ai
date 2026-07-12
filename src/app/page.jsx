@@ -28,6 +28,8 @@ export default function Home() {
   const [scanPhase, setScanPhase] = useState("idle");
   const [turnstileToken, setTurnstileToken] = useState("");
   const turnstileRef = useRef(null);
+  // Once the backend issues a session cookie, we stop sending the Turnstile token
+  const isSessionVerified = useRef(false);
 
   // ─── Settings state ───
   const [showSettings, setShowSettings] = useState(false);
@@ -91,10 +93,16 @@ export default function Home() {
         content: msg.rawText || msg.text || ""
       }));
 
+      // Only send turnstile token on first request; session cookie handles the rest
+      const body = { messages: apiMessages };
+      if (!isSessionVerified.current && turnstileToken) {
+        body.turnstileToken = turnstileToken;
+      }
+
       const response = await fetch('/api', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: apiMessages, turnstileToken })
+        body: JSON.stringify(body)
       });
 
       if (!response.ok) {
@@ -109,7 +117,7 @@ export default function Home() {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
-      // Add an empty AI message to start filling in
+      // Add an empty AI message placeholder
       setScanPhase("typing");
       setMessages((prev) => [
         ...prev,
@@ -117,21 +125,33 @@ export default function Home() {
       ]);
 
       let fullText = "";
+      // Typing Speed controls how many chars to reveal per frame when streaming
+      const charsPerFrame = TYPING_SPEEDS[typingSpeed] || 3;
+      let renderIndex = 0;
+
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         const token = decoder.decode(value, { stream: true });
         fullText += token;
-        setMessages((prev) => {
-          const updated = [...prev];
-          updated[updated.length - 1] = {
-            type: "ai",
-            text: fullText,
-            rawText: fullText,
-            isTyping: true,
-          };
-          return updated;
-        });
+
+        if (!streaming) continue; // accumulate but don't render yet
+
+        // Throttle rendering to charsPerFrame characters at a time
+        while (renderIndex < fullText.length) {
+          renderIndex = Math.min(renderIndex + charsPerFrame, fullText.length);
+          const visibleText = fullText.substring(0, renderIndex);
+          setMessages((prev) => {
+            const updated = [...prev];
+            updated[updated.length - 1] = {
+              type: "ai", text: visibleText, rawText: fullText, isTyping: true,
+            };
+            return updated;
+          });
+          if (renderIndex < fullText.length) {
+            await new Promise((r) => setTimeout(r, 15));
+          }
+        }
       }
 
       // Mark done — trim to last complete sentence if cut off at token limit
@@ -157,22 +177,22 @@ export default function Home() {
       });
       setScanPhase("idle");
       setIsResponding(false);
+      // Mark session as established so we skip Turnstile on future requests
+      isSessionVerified.current = true;
     } catch (error) {
       console.error("Error fetching response:", error);
       setIsResponding(false);
       setScanPhase("idle");
-      
+
       // If error.message has text from our backend, show it. Otherwise generic error.
-      const errorText = error.message && error.message.length < 300 
-        ? error.message 
+      const errorText = error.message && error.message.length < 300
+        ? error.message
         : "Something went wrong. Please try again.";
-        
+
       setMessages((prev) => [
         ...prev,
         { type: "ai", text: errorText },
       ]);
-    } finally {
-      // Session-based: No need to reset Turnstile on every single message
     }
   };
 
@@ -294,7 +314,7 @@ export default function Home() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-[15px] text-white font-medium">Response Streaming</p>
-                      <p className="text-[13px] text-gray-500 mt-0.5">Show response with typing animation</p>
+                       <p className="text-[13px] text-gray-500 mt-0.5">Show response token-by-token as it streams</p>
                     </div>
                     <button
                       onClick={() => setStreaming(!streaming)}
@@ -338,8 +358,8 @@ export default function Home() {
                           key={size}
                           onClick={() => setFontSize(size)}
                           className={`py-2.5 rounded-xl text-sm font-medium transition-all ${fontSize === size
-                              ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/20"
-                              : "bg-[#1a1a2e] text-gray-400 hover:bg-[#2a2a3e] hover:text-white"
+                            ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/20"
+                            : "bg-[#1a1a2e] text-gray-400 hover:bg-[#2a2a3e] hover:text-white"
                             }`}
                         >
                           {size}
@@ -348,8 +368,8 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Typing Speed */}
-                  <div>
+                  {/* Typing Speed — only relevant when streaming=on */}
+                  <div className={streaming ? "" : "opacity-40 pointer-events-none"}>
                     <p className="text-[15px] text-white font-medium mb-3">Typing Speed</p>
                     <div className="grid grid-cols-3 gap-2">
                       {Object.keys(TYPING_SPEEDS).map((speed) => (
@@ -357,8 +377,8 @@ export default function Home() {
                           key={speed}
                           onClick={() => setTypingSpeed(speed)}
                           className={`py-2.5 rounded-xl text-sm font-medium transition-all ${typingSpeed === speed
-                              ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/20"
-                              : "bg-[#1a1a2e] text-gray-400 hover:bg-[#2a2a3e] hover:text-white"
+                            ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/20"
+                            : "bg-[#1a1a2e] text-gray-400 hover:bg-[#2a2a3e] hover:text-white"
                             }`}
                         >
                           {speed}
@@ -616,10 +636,10 @@ export default function Home() {
                 }}
                 className="w-full px-5 py-3.5 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
               />
-                <div className="text-xs text-gray-500 font-medium pr-4 hidden sm:block whitespace-nowrap">
-                  Press Enter ↵
-                </div>
+              <div className="text-xs text-gray-500 font-medium pr-4 hidden sm:block whitespace-nowrap">
+                Press Enter ↵
               </div>
+            </div>
             <button
               onClick={fetchResponse}
               disabled={isResponding || !userInput.trim()}
@@ -642,7 +662,7 @@ export default function Home() {
               </div>
               <div className="max-w-3xl mx-auto flex justify-center mt-1.5">
                 <span className="flex items-center gap-1.5 text-[11px] text-gray-600">
-                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 6.5l-4 4a.75.75 0 01-1.06 0l-2-2a.75.75 0 111.06-1.06L7 8.94l3.47-3.47a.75.75 0 111.06 1.06z" fill="#f38020"/></svg>
+                  <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 6.5l-4 4a.75.75 0 01-1.06 0l-2-2a.75.75 0 111.06-1.06L7 8.94l3.47-3.47a.75.75 0 111.06 1.06z" fill="#f38020" /></svg>
                   Protected by Cloudflare
                 </span>
               </div>
