@@ -248,18 +248,21 @@ async function handleRequest(request) {
                 }
             }
 
+            let rlResult = null;
+            let rawIp = "unknown";
+
             // 2. Upstash Redis Rate Limiting
             const ratelimit = getRateLimiter();
             if (ratelimit) {
                 // cf-connecting-ip is set by Cloudflare and is always the real client IP
                 // x-forwarded-for can be a comma-separated list; take only the first entry
-                const rawIp =
+                rawIp =
                     request.headers.get("cf-connecting-ip") ||
                     (request.headers.get("x-forwarded-for") || "").split(",")[0].trim() ||
                     request.ip ||
                     "unknown";
-                const { success } = await ratelimit.limit(rawIp);
-                if (!success) {
+                rlResult = await ratelimit.limit(rawIp);
+                if (!rlResult.success) {
                     return new NextResponse("Bro calm down! You can only request 5 times per minute. Tokens don't grow on trees, let everyone use it since it's a free platform! 🌴", { status: 429 });
                 }
             }
@@ -272,6 +275,13 @@ async function handleRequest(request) {
                     "Cache-Control": "no-cache",
                     "Transfer-Encoding": "chunked",
                 };
+                
+                // Add debug headers so we can track rate limit issues in the network tab
+                if (rlResult) {
+                    headers["X-RateLimit-IP"] = rawIp;
+                    headers["X-RateLimit-Remaining"] = rlResult.remaining.toString();
+                }
+
                 if (newSessionId) {
                     headers["Set-Cookie"] = `cf_verified=${newSessionId}; HttpOnly; Path=/; Max-Age=${3600 * 24}${process.env.NODE_ENV === 'production' ? '; Secure' : ''}`;
                 }

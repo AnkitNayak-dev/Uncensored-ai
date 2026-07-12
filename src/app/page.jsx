@@ -132,8 +132,6 @@ export default function Home() {
           };
           return updated;
         });
-        // Auto-scroll as tokens arrive
-        chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
       }
 
       // Mark done — trim to last complete sentence if cut off at token limit
@@ -221,7 +219,7 @@ export default function Home() {
   useEffect(() => {
     requestAnimationFrame(() => {
       if (chatEndRef.current) {
-        chatEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+        chatEndRef.current.scrollIntoView({ behavior: "auto", block: "end" });
       }
     });
   }, [messages]);
