@@ -163,9 +163,15 @@ export default function Home() {
       console.error("Error fetching response:", error);
       setIsResponding(false);
       setScanPhase("idle");
+      
+      // If error.message has text from our backend, show it. Otherwise generic error.
+      const errorText = error.message && error.message.length < 300 
+        ? error.message 
+        : "Something went wrong. Please try again.";
+        
       setMessages((prev) => [
         ...prev,
-        { type: "ai", text: "Something went wrong. Please try again." },
+        { type: "ai", text: errorText },
       ]);
     } finally {
       // Session-based: No need to reset Turnstile on every single message
