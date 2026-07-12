@@ -6,13 +6,16 @@ import OpenAI from 'openai';
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
+export const runtime = "edge";
 
-
-const openai = new OpenAI({
+const nvidiaOpenai = new OpenAI({
     apiKey: process.env.NVIDIA_API_KEY,
     baseURL: 'https://integrate.api.nvidia.com/v1',
+});
+
+const groqOpenai = new OpenAI({
+    apiKey: process.env.GROQ_API_KEY,
+    baseURL: 'https://api.groq.com/openai/v1',
 });
 
 // =========================
@@ -68,23 +71,41 @@ Return all required files.
 
 
 // =========================
-// LLM CALL (NVIDIA CODE)
+// LLM CALL (CODE)
 // =========================
 async function callNvidiaCode(messages) {
-    const stream = await openai.chat.completions.create({
-        model: "openai/gpt-oss-120b",
-        messages: messages,
-        temperature: 0.2,
-        top_p: 1,
-        max_tokens: 2048,
-        stream: true
-    });
+    try {
+        const stream = await groqOpenai.chat.completions.create({
+            model: "openai/gpt-oss-120b",
+            messages: messages,
+            temperature: 0.2,
+            top_p: 1,
+            max_tokens: 2048,
+            stream: true
+        });
 
-    let text = "";
-    for await (const chunk of stream) {
-        text += chunk.choices[0]?.delta?.content || "";
+        let text = "";
+        for await (const chunk of stream) {
+            text += chunk.choices[0]?.delta?.content || "";
+        }
+        return text.trim();
+    } catch (e) {
+        console.error("Groq code generation failed, falling back to Nvidia", e);
+        const stream = await nvidiaOpenai.chat.completions.create({
+            model: "openai/gpt-oss-120b",
+            messages: messages,
+            temperature: 0.2,
+            top_p: 1,
+            max_tokens: 2048,
+            stream: true
+        });
+
+        let text = "";
+        for await (const chunk of stream) {
+            text += chunk.choices[0]?.delta?.content || "";
+        }
+        return text.trim();
     }
-    return text.trim();
 }
 
 // =========================
@@ -134,20 +155,33 @@ Disallowed content:
         ...conversationMessages
     ];
 
-    const nvidiaStream = await openai.chat.completions.create({
-        model: "openai/gpt-oss-120b",
-        messages,
-        temperature: 0.7,
-        top_p: 1,
-        max_tokens: 4096,
-        stream: true
-    });
+    let apiStream;
+    try {
+        apiStream = await groqOpenai.chat.completions.create({
+            model: "openai/gpt-oss-120b",
+            messages,
+            temperature: 0.7,
+            top_p: 1,
+            max_tokens: 4096,
+            stream: true
+        });
+    } catch (e) {
+        console.error("Groq text generation failed, falling back to Nvidia", e);
+        apiStream = await nvidiaOpenai.chat.completions.create({
+            model: "openai/gpt-oss-120b",
+            messages,
+            temperature: 0.7,
+            top_p: 1,
+            max_tokens: 4096,
+            stream: true
+        });
+    }
 
     const encoder = new TextEncoder();
     const readable = new ReadableStream({
         async start(controller) {
             try {
-                for await (const chunk of nvidiaStream) {
+                for await (const chunk of apiStream) {
                     const token = chunk.choices[0]?.delta?.content || "";
                     if (token) controller.enqueue(encoder.encode(token));
                 }
@@ -277,7 +311,7 @@ async function handleRequest(request) {
                     "Cache-Control": "no-cache",
                     "Transfer-Encoding": "chunked",
                 };
-                
+
                 // Add debug headers so we can track rate limit issues in the network tab
                 if (rlResult) {
                     headers["X-RateLimit-IP"] = rawIp;
