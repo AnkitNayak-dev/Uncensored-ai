@@ -1,8 +1,12 @@
-# Uncensored GPT-OSS 120B Chat
+# Uncensored GPT-OSS 120B AI
 
 A completely free, 100% anonymous, and fully uncensored AI chat interface powered by the **GPT-OSS 120B API**. This project was built to provide an unrestricted conversational AI experience with zero tracking.
 
-![image](https://github.com/user-attachments/assets/47816e33-97c5-4792-822c-6a56a1eee9b0)
+
+
+https://github.com/user-attachments/assets/1e7be761-36c8-428c-b0ce-a1e1c52cb57b
+
+
 
 ---
 
