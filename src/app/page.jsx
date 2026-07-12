@@ -15,9 +15,6 @@ import { Turnstile } from '@marsidev/react-turnstile';
 // ─── Font size map ───
 const FONT_SIZES = { small: "13px", medium: "15px", large: "17px" };
 
-// ─── Typing speed map (chars per tick) ───
-const TYPING_SPEEDS = { slow: 1, normal: 3, fast: 8 };
-
 export default function Home() {
   const [userInput, setUserInput] = useState("");
   const [messages, setMessages] = useState([]);
@@ -36,7 +33,6 @@ export default function Home() {
   const [streaming, setStreaming] = useState(true);
   const [animationsEnabled, setAnimationsEnabled] = useState(true);
   const [fontSize, setFontSize] = useState("medium");
-  const [typingSpeed, setTypingSpeed] = useState("normal");
 
   const chatEndRef = useRef(null);
 
@@ -57,7 +53,6 @@ export default function Home() {
           if (s.streaming !== undefined) setStreaming(s.streaming);
           if (s.animationsEnabled !== undefined) setAnimationsEnabled(s.animationsEnabled);
           if (s.fontSize) setFontSize(s.fontSize);
-          if (s.typingSpeed) setTypingSpeed(s.typingSpeed);
         } catch { }
       }
     }
@@ -68,10 +63,10 @@ export default function Home() {
     if (typeof window !== "undefined") {
       localStorage.setItem(
         "gptoss_settings",
-        JSON.stringify({ streaming, animationsEnabled, fontSize, typingSpeed })
+        JSON.stringify({ streaming, animationsEnabled, fontSize })
       );
     }
-  }, [streaming, animationsEnabled, fontSize, typingSpeed]);
+  }, [streaming, animationsEnabled, fontSize]);
 
   const fetchResponse = async () => {
     if (!userInput.trim()) return;
@@ -125,9 +120,6 @@ export default function Home() {
       ]);
 
       let fullText = "";
-      // Typing Speed controls how many chars to reveal per frame when streaming
-      const charsPerFrame = TYPING_SPEEDS[typingSpeed] || 3;
-      let renderIndex = 0;
 
       while (true) {
         const { done, value } = await reader.read();
@@ -137,21 +129,14 @@ export default function Home() {
 
         if (!streaming) continue; // accumulate but don't render yet
 
-        // Throttle rendering to charsPerFrame characters at a time
-        while (renderIndex < fullText.length) {
-          renderIndex = Math.min(renderIndex + charsPerFrame, fullText.length);
-          const visibleText = fullText.substring(0, renderIndex);
-          setMessages((prev) => {
-            const updated = [...prev];
-            updated[updated.length - 1] = {
-              type: "ai", text: visibleText, rawText: fullText, isTyping: true,
-            };
-            return updated;
-          });
-          if (renderIndex < fullText.length) {
-            await new Promise((r) => setTimeout(r, 15));
-          }
-        }
+        // Render immediately at raw network speed
+        setMessages((prev) => {
+          const updated = [...prev];
+          updated[updated.length - 1] = {
+            type: "ai", text: fullText, rawText: fullText, isTyping: true,
+          };
+          return updated;
+        });
       }
 
       // Mark done — trim to last complete sentence if cut off at token limit
@@ -197,40 +182,6 @@ export default function Home() {
   };
 
 
-  // Typing effect
-  useEffect(() => {
-    const lastMsg = messages[messages.length - 1];
-    if (lastMsg && lastMsg.isTyping) {
-      let currentIndex = 0;
-      const charsPerTick = TYPING_SPEEDS[typingSpeed] || 3;
-      const interval = setInterval(() => {
-        if (currentIndex < lastMsg.rawText.length) {
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            const currentMsg = { ...newMessages[newMessages.length - 1] };
-            currentIndex += charsPerTick;
-            if (currentIndex > lastMsg.rawText.length) {
-              currentIndex = lastMsg.rawText.length;
-            }
-            currentMsg.text = lastMsg.rawText.substring(0, currentIndex);
-            newMessages[newMessages.length - 1] = currentMsg;
-            return newMessages;
-          });
-        } else {
-          clearInterval(interval);
-          setIsResponding(false);
-          setScanPhase("idle");
-          setMessages((prev) => {
-            const newMessages = [...prev];
-            newMessages[newMessages.length - 1].isTyping = false;
-            return newMessages;
-          });
-        }
-      }, 15);
-
-      return () => clearInterval(interval);
-    }
-  }, [messages.length, typingSpeed]);
 
   const handleKeyPress = (e) => {
     if (e.key === "Enter") fetchResponse();
@@ -363,25 +314,6 @@ export default function Home() {
                             }`}
                         >
                           {size}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Typing Speed — only relevant when streaming=on */}
-                  <div className={streaming ? "" : "opacity-40 pointer-events-none"}>
-                    <p className="text-[15px] text-white font-medium mb-3">Typing Speed</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {Object.keys(TYPING_SPEEDS).map((speed) => (
-                        <button
-                          key={speed}
-                          onClick={() => setTypingSpeed(speed)}
-                          className={`py-2.5 rounded-xl text-sm font-medium transition-all ${typingSpeed === speed
-                            ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-lg shadow-indigo-500/20"
-                            : "bg-[#1a1a2e] text-gray-400 hover:bg-[#2a2a3e] hover:text-white"
-                            }`}
-                        >
-                          {speed}
                         </button>
                       ))}
                     </div>

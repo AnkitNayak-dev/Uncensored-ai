@@ -6,7 +6,9 @@ import OpenAI from 'openai';
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-export const runtime = "edge";
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 
 const openai = new OpenAI({
     apiKey: process.env.NVIDIA_API_KEY,
