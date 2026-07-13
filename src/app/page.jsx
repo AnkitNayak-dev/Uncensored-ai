@@ -31,7 +31,7 @@ export default function Home() {
   // ─── Settings state ───
   const [showSettings, setShowSettings] = useState(false);
   const [streaming, setStreaming] = useState(true);
-  const [animationsEnabled, setAnimationsEnabled] = useState(true);
+  const [animationsEnabled, setAnimationsEnabled] = useState(false);
   const [fontSize, setFontSize] = useState("medium");
 
   const chatEndRef = useRef(null);
