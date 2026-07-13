@@ -332,7 +332,6 @@ export default function Home() {
 
       {/* ─── Home Page ─── */}
       {!hasInteracted && (
-        animationsEnabled ? (
           <HeroHighlight className="relative z-10">
             <div className="flex-1 flex flex-col items-center justify-center text-center px-4 transition-all duration-500 relative z-20 font-mono">
               <motion.h1
@@ -424,64 +423,6 @@ export default function Home() {
               </motion.nav>
             </div>
           </HeroHighlight>
-        ) : (
-          <div className="relative h-[100dvh] flex items-center bg-black justify-center w-screen">
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-4 relative z-20 font-mono">
-              <h1 className="relative mb-8 z-10 text-5xl md:text-7xl bg-clip-text text-transparent bg-gradient-to-b from-neutral-200 to-neutral-600 text-center font-sans font-bold py-2">
-                Ask anything. We don't judge.
-              </h1>
-              <p className="text-lg text-gray-400">
-                No Login. No Signup. 100% Free. No Logs. Completely Anonymous.<br />
-                Powered by the{" "}
-                <span className="inline-block pb-1 px-1 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-500 text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 120B</span> API.
-              </p>
-              <div className="flex items-center gap-3 w-full max-w-xl mt-6">
-                <HoverBorderGradient
-                  containerClassName="rounded-full flex-1 !w-full"
-                  as="div"
-                  duration={1}
-                  className="flex items-center w-full !px-0 !py-0"
-                >
-                  <input
-                    type="text"
-                    placeholder="Message GPT-OSS..."
-                    value={userInput}
-                    onChange={(e) => setUserInput(e.target.value)}
-                    onKeyDown={handleKeyPress}
-                    onFocus={(e) => {
-                      setTimeout(() => {
-                        e.target.scrollIntoView({ behavior: "smooth", block: "center" });
-                      }, 300);
-                    }}
-                    className="w-full px-5 py-3.5 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-base"
-                  />
-                </HoverBorderGradient>
-                <HoverBorderGradient
-                  containerClassName="rounded-full"
-                  as="button"
-                  duration={1}
-                  onClick={fetchResponse}
-                  className="flex items-center justify-center !px-4 !py-3.5"
-                >
-                  <IoIosSend size={24} className="text-white" />
-                </HoverBorderGradient>
-              </div>
-              <nav className="flex flex-row m-8 items-center gap-8">
-                {footerLinks.map((link, index) => (
-                  <a
-                    href={link.href}
-                    key={index}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 transform hover:scale-150 transition-transform duration-300 ease-in-out"
-                  >
-                    <span>{link.icon}</span>
-                  </a>
-                ))}
-              </nav>
-            </div>
-          </div>
-        )
       )}
 
       {/* ─── GridScan Background ─── */}
