@@ -13,10 +13,46 @@ const nvidiaOpenai = new OpenAI({
     baseURL: 'https://integrate.api.nvidia.com/v1',
 });
 
-const groqOpenai = new OpenAI({
-    apiKey: process.env.GROQ_API_KEY,
-    baseURL: 'https://api.groq.com/openai/v1',
-});
+// =========================
+// GROQ KEY ROTATION
+// =========================
+function getGroqKeys() {
+    return [
+        process.env.GROQ_API_KEY,
+        process.env.GROQ_API_KEY_2,
+        process.env.GROQ_API_KEY_3,
+    ].filter(Boolean); // remove empty/undefined slots
+}
+
+function isRateLimitError(e) {
+    return e?.status === 429
+        || e?.message?.includes('429')
+        || e?.message?.toLowerCase().includes('rate limit')
+        || e?.message?.toLowerCase().includes('rate_limit');
+}
+
+// Try each Groq key in order; skip to next key on 429
+async function groqCreateWithRotation(params) {
+    const keys = getGroqKeys();
+    if (keys.length === 0) throw new Error('No Groq API keys configured');
+
+    let lastError = null;
+    for (const key of keys) {
+        const client = new OpenAI({ apiKey: key, baseURL: 'https://api.groq.com/openai/v1' });
+        try {
+            return await client.chat.completions.create(params);
+        } catch (e) {
+            if (isRateLimitError(e)) {
+                console.warn(`Groq key exhausted (429), rotating to next key...`);
+                lastError = e;
+                continue; // try next key
+            }
+            throw e; // non-429 error → propagate immediately
+        }
+    }
+    // All keys exhausted
+    throw lastError;
+}
 
 // =========================
 // SECURITY
@@ -75,12 +111,13 @@ Return all required files.
 // =========================
 async function callNvidiaCode(messages) {
     try {
-        const stream = await groqOpenai.chat.completions.create({
+        // Try all Groq keys in rotation before giving up
+        const stream = await groqCreateWithRotation({
             model: "openai/gpt-oss-120b",
             messages: messages,
             temperature: 0.2,
             top_p: 1,
-            max_tokens: 2048,
+            max_tokens: 1024,
             stream: true
         });
 
@@ -90,13 +127,18 @@ async function callNvidiaCode(messages) {
         }
         return text.trim();
     } catch (e) {
-        console.error("Groq code generation failed, falling back to Nvidia", e);
+        // All Groq keys exhausted (all returned 429) → fall back to Nvidia
+        if (isRateLimitError(e)) {
+            console.warn("All Groq keys rate-limited, falling back to Nvidia");
+        } else {
+            console.error("Groq code generation failed, falling back to Nvidia", e);
+        }
         const stream = await nvidiaOpenai.chat.completions.create({
             model: "openai/gpt-oss-120b",
             messages: messages,
             temperature: 0.2,
             top_p: 1,
-            max_tokens: 2048,
+            max_tokens: 1024,
             stream: true
         });
 
@@ -157,22 +199,28 @@ Disallowed content:
 
     let apiStream;
     try {
-        apiStream = await groqOpenai.chat.completions.create({
+        // Try all Groq keys in rotation before giving up
+        apiStream = await groqCreateWithRotation({
             model: "openai/gpt-oss-120b",
             messages,
             temperature: 0.7,
             top_p: 1,
-            max_tokens: 4096,
+            max_tokens: 1024,
             stream: true
         });
     } catch (e) {
-        console.error("Groq text generation failed, falling back to Nvidia", e);
+        // All Groq keys exhausted (all returned 429) → fall back to Nvidia
+        if (isRateLimitError(e)) {
+            console.warn("All Groq keys rate-limited, falling back to Nvidia");
+        } else {
+            console.error("Groq text generation failed, falling back to Nvidia", e);
+        }
         apiStream = await nvidiaOpenai.chat.completions.create({
             model: "openai/gpt-oss-120b",
             messages,
             temperature: 0.7,
             top_p: 1,
-            max_tokens: 4096,
+            max_tokens: 1024,
             stream: true
         });
     }

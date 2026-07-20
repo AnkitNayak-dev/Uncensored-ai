@@ -212,6 +212,10 @@ export default function Home() {
 
   const currentFontSize = FONT_SIZES[fontSize] || "15px";
 
+  // Gate: if Turnstile is configured, block until verified
+  const needsVerification = !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
+  const isVerified = !needsVerification || !!turnstileToken || isSessionVerified.current;
+
   return (
     <div className="flex flex-col h-[100dvh] text-white bg-[#0a0a0a] overflow-hidden">
 
@@ -364,12 +368,13 @@ export default function Home() {
                   containerClassName="rounded-full flex-1 !w-full"
                   as="div"
                   duration={1}
-                  className="flex items-center w-full !px-0 !py-0"
+                  className={`flex items-center w-full !px-0 !py-0 ${!isVerified ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   <input
                     type="text"
-                    placeholder="Message GPT-OSS..."
+                    placeholder={isVerified ? "Message GPT-OSS..." : "Complete verification below to start chatting..."}
                     value={userInput}
+                    disabled={!isVerified}
                     onChange={(e) => setUserInput(e.target.value)}
                     onKeyDown={handleKeyPress}
                     onFocus={(e) => {
@@ -377,15 +382,15 @@ export default function Home() {
                         e.target.scrollIntoView({ behavior: "smooth", block: "center" });
                       }, 300);
                     }}
-                    className="w-full px-5 py-4 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px]"
+                    className={`w-full px-5 py-4 bg-transparent text-white text-left placeholder-gray-500 focus:outline-none text-[15px] ${!isVerified ? 'cursor-not-allowed' : ''}`}
                   />
                 </HoverBorderGradient>
                 <HoverBorderGradient
                   containerClassName="rounded-full"
                   as="button"
                   duration={1}
-                  onClick={fetchResponse}
-                  className="flex items-center justify-center !px-4 !py-3.5"
+                  onClick={isVerified ? fetchResponse : undefined}
+                  className={`flex items-center justify-center !px-4 !py-3.5 ${!isVerified ? 'opacity-40 cursor-not-allowed' : ''}`}
                 >
                   <IoIosSend size={24} className="text-white" />
                 </HoverBorderGradient>
@@ -393,7 +398,7 @@ export default function Home() {
 
               {/* Turnstile widget under chat bar */}
               {process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY && (
-                <div className={`mt-3 flex justify-center transition-all duration-500 ${turnstileToken ? 'opacity-0 pointer-events-none absolute h-0 overflow-hidden' : 'opacity-100'}`}>
+                <div className="mt-3 flex justify-center">
                   <Turnstile
                     ref={turnstileRef}
                     siteKey={process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY}
