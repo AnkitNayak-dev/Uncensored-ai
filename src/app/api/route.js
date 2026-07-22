@@ -38,8 +38,10 @@ async function groqCreateWithRotation(params) {
 
     let lastError = null;
     for (const key of keys) {
-        const client = new OpenAI({ apiKey: key, baseURL: 'https://api.groq.com/openai/v1' });
+        // maxRetries: 0 = fail fast on 429 without retrying the same key
+        const client = new OpenAI({ apiKey: key, baseURL: 'https://api.groq.com/openai/v1', maxRetries: 0 });
         try {
+            // 429 is thrown at .create() time (HTTP error before body) — even with stream:true
             return await client.chat.completions.create(params);
         } catch (e) {
             if (isRateLimitError(e)) {
