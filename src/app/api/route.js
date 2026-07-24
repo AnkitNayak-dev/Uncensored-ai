@@ -6,7 +6,8 @@ import OpenAI from 'openai';
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
-export const runtime = "edge";
+// Node.js runtime (default) — required for cookies(), OpenAI SDK, and Upstash Redis.
+// Do NOT use edge runtime here; cookies() is not supported in the Edge runtime.
 
 // =========================
 // GROQ KEY ROTATION
