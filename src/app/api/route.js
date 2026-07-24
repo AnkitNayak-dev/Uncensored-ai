@@ -247,7 +247,9 @@ async function handleRequest(request) {
             let newSessionId = null;
 
             // 1. Session & Turnstile Verification
-            if (process.env.TURNSTILE_SECRET_KEY) {
+            // Skip entirely in development — Turnstile site keys are domain-locked and won't work on localhost
+            const isDev = process.env.NODE_ENV === 'development';
+            if (!isDev && process.env.TURNSTILE_SECRET_KEY) {
                 const cookieStore = await cookies();
                 const sessionId = cookieStore.get('cf_verified')?.value;
                 let isVerified = false;
@@ -367,8 +369,9 @@ export async function GET(request) {
     try {
         return await handleRequest(request);
     } catch (e) {
-        console.error(e);
-        return new NextResponse("Internal error", { status: 500 });
+        console.error('[API ERROR - GET]', e?.message || e);
+        console.error(e?.stack || '');
+        return new NextResponse(`Internal error: ${e?.message || 'unknown'}`, { status: 500 });
     }
 }
 
@@ -376,7 +379,8 @@ export async function POST(request) {
     try {
         return await handleRequest(request);
     } catch (e) {
-        console.error(e);
-        return new NextResponse("Internal error", { status: 500 });
+        console.error('[API ERROR - POST]', e?.message || e);
+        console.error(e?.stack || '');
+        return new NextResponse(`Internal error: ${e?.message || 'unknown'}`, { status: 500 });
     }
 }
