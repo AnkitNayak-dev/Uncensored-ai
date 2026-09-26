@@ -116,8 +116,8 @@ function getRedis() {
 const MAX_INPUT_CHARS = 2000;       // max characters for a single prompt
 const MAX_MESSAGES_TOTAL = 6000;    // max total characters across all messages in a conversation
 
-// ── Turnstile Session Duration (24 hours) ──
-const TURNSTILE_SESSION_TTL = 86400; // 24 hours in seconds
+// ── Turnstile Session Duration (30 minutes) ──
+const TURNSTILE_SESSION_TTL = 1800; // 30 minutes in seconds (prevents long-term bot session reuse)
 
 // ── Rate limiter (5 requests / minute per IP) ──
 let _ratelimit = null;
@@ -162,8 +162,8 @@ function checkMemoryRateLimit(ip) {
     return { success: true, remaining: MEMORY_MAX_REQS - record.count };
 }
 
-// ── Daily per-IP cap (50 requests/day) ──
-const DAILY_REQUEST_LIMIT = 50;
+// ── Daily per-IP cap (30 requests/day) ──
+const DAILY_REQUEST_LIMIT = 30;
 const DAILY_REQUEST_WINDOW = 86400; // 24 hours in seconds
 
 async function checkDailyCap(ip) {
@@ -186,7 +186,6 @@ async function checkDailyCap(ip) {
 }
 
 // Check if running in a safe local development environment.
-// NEVER trust client-supplied headers (Host, Origin, X-Forwarded-Host) in production.
 function isDevelopmentEnvironment() {
     return process.env.NODE_ENV === 'development';
 }
@@ -199,6 +198,22 @@ function extractClientIp(request) {
         request.ip ||
         "127.0.0.1"
     );
+}
+
+// Verify that incoming request originates from valid browser session
+function isAllowedOrigin(request) {
+    if (isDevelopmentEnvironment()) return true;
+    const origin = request.headers.get("origin");
+    const referer = request.headers.get("referer");
+    const host = request.headers.get("host");
+
+    if (!origin && !referer) return false; // Block raw headless requests missing origin/referer
+
+    const target = origin || referer || "";
+    if (host && target.includes(host)) return true;
+    if (target.includes("localhost") || target.includes("127.0.0.1")) return true;
+
+    return false;
 }
 
 // =========================
@@ -413,6 +428,10 @@ async function handleRequest(request) {
     let result = "";
     const isDev = isDevelopmentEnvironment();
     const rawIp = extractClientIp(request);
+
+    if (!isAllowedOrigin(request)) {
+        return new NextResponse("Forbidden request origin", { status: 403 });
+    }
 
     if (request.method === "POST") {
         try {
