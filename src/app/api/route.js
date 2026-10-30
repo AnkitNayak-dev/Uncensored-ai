@@ -1,12 +1,20 @@
 import { NextResponse } from 'next/server';
 const Groq = require("groq-sdk");
 
-const groq = new Groq({
-    apiKey: process.env.GROQ_API_KEY
-});
+function getGroqClient() {
+    const apiKey = process.env.GROQ_API_KEY;
+
+    if (!apiKey) {
+        throw new Error("GROQ_API_KEY is missing. Add it to your .env.local file before using the chat API.");
+    }
+
+    return new Groq({ apiKey });
+}
 
 // Call Groq LLaMA chat API
 async function getGroqChatCompletion(content) {
+    const groq = getGroqClient();
+
     return groq.chat.completions.create({
         messages: [
             {
@@ -50,12 +58,11 @@ async function handleRequest(request) {
         return new NextResponse(response, {
             headers: { "Content-Type": "text/plain" }
         });
-    } else {
-        // Return normal chat response as JSON
-        const response = await getGroqChatCompletion(contentParam || "Hi, how are you?");
-        const message = response.choices[0]?.message?.content || "";
-        return NextResponse.json({ message });
     }
+
+    const response = await getGroqChatCompletion(contentParam || "Hi, how are you?");
+    const message = response.choices[0]?.message?.content || "";
+    return NextResponse.json({ message });
 }
 
 export async function GET(request) {
@@ -63,7 +70,10 @@ export async function GET(request) {
         return await handleRequest(request);
     } catch (error) {
         console.error(error);
-        return new NextResponse('An error occurred', { status: 500 });
+        return NextResponse.json(
+            { error: error.message || "An unexpected error occurred while generating a response." },
+            { status: 500 }
+        );
     }
 }
 
@@ -72,6 +82,9 @@ export async function POST(request) {
         return await handleRequest(request);
     } catch (error) {
         console.error(error);
-        return new NextResponse('An error occurred', { status: 500 });
+        return NextResponse.json(
+            { error: error.message || "An unexpected error occurred while generating a response." },
+            { status: 500 }
+        );
     }
 }
