@@ -34,12 +34,48 @@ export default function Home() {
   const [streaming, setStreaming] = useState(true);
   const [animationsEnabled, setAnimationsEnabled] = useState(false);
   const [fontSize, setFontSize] = useState("medium");
+
+  // VIP Passkey state
   const [specialKey, setSpecialKey] = useState("");
+  const [inputSpecialKey, setInputSpecialKey] = useState("");
+  const [isVipValid, setIsVipValid] = useState(false);
+  const [isVerifyingPasskey, setIsVerifyingPasskey] = useState(false);
+  const [passkeyMessage, setPasskeyMessage] = useState({ text: "", isError: false });
+
+  // Personal Groq Key state
   const [customGroqKey, setCustomGroqKey] = useState("");
-  const [showCustomKeyCard, setShowCustomKeyCard] = useState(false);
-  const [tempCustomKey, setTempCustomKey] = useState("");
+  const [homeGroqKeyInput, setHomeGroqKeyInput] = useState("");
+  const [settingsGroqKeyInput, setSettingsGroqKeyInput] = useState("");
+  const [groqKeyMessage, setGroqKeyMessage] = useState("");
 
   const chatEndRef = useRef(null);
+
+  const verifyPasskeyWithServer = async (candidateKey) => {
+    const trimmed = (candidateKey || "").trim();
+    if (!trimmed) {
+      setPasskeyMessage({ text: "Please enter a passkey.", isError: true });
+      return;
+    }
+    setIsVerifyingPasskey(true);
+    setPasskeyMessage({ text: "", isError: false });
+    try {
+      const res = await fetch(`/api?verifyPasskey=${encodeURIComponent(trimmed)}`);
+      const data = await res.json();
+      if (data?.valid) {
+        setSpecialKey(trimmed);
+        setIsVipValid(true);
+        setPasskeyMessage({ text: "VIP Passkey verified! Unlimited access active.", isError: false });
+        localStorage.setItem("gptoss_special_key", trimmed);
+      } else {
+        setIsVipValid(false);
+        setPasskeyMessage({ text: "Invalid passkey. Access denied.", isError: true });
+      }
+    } catch {
+      setPasskeyMessage({ text: "Unable to verify passkey right now.", isError: true });
+    } finally {
+      setIsVerifyingPasskey(false);
+    }
+  };
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -53,14 +89,31 @@ export default function Home() {
       const verified = sessionStorage.getItem(SESSION_VERIFIED_KEY) === "1";
       isSessionVerified.current = verified;
 
-      // Load saved settings & keys
+      // Load & verify saved VIP passkey
       const savedSpecial = localStorage.getItem("gptoss_special_key") || "";
-      if (savedSpecial) setSpecialKey(savedSpecial);
+      if (savedSpecial) {
+        setInputSpecialKey(savedSpecial);
+        fetch(`/api?verifyPasskey=${encodeURIComponent(savedSpecial)}`)
+          .then((r) => r.json())
+          .then((data) => {
+            if (data?.valid) {
+              setSpecialKey(savedSpecial);
+              setIsVipValid(true);
+            } else {
+              localStorage.removeItem("gptoss_special_key");
+              setSpecialKey("");
+              setIsVipValid(false);
+            }
+          })
+          .catch(() => {});
+      }
 
+      // Load saved personal Groq key
       const savedCustomKey = localStorage.getItem("gptoss_custom_groq_key") || "";
       if (savedCustomKey) {
         setCustomGroqKey(savedCustomKey);
-        setTempCustomKey(savedCustomKey);
+        setHomeGroqKeyInput(savedCustomKey);
+        setSettingsGroqKeyInput(savedCustomKey);
       }
 
       const saved = localStorage.getItem("gptoss_settings");
@@ -84,13 +137,6 @@ export default function Home() {
       );
     }
   }, [streaming, animationsEnabled, fontSize]);
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      if (specialKey.trim()) localStorage.setItem("gptoss_special_key", specialKey.trim());
-      else localStorage.removeItem("gptoss_special_key");
-    }
-  }, [specialKey]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -130,7 +176,7 @@ export default function Home() {
       }
 
       // Only send turnstile token on first request; session cookie handles the rest. Privileged keys bypass Turnstile.
-      const hasPrivilege = Boolean(specialKey.trim() || customGroqKey.trim());
+      const hasPrivilege = Boolean((specialKey.trim() && isVipValid) || customGroqKey.trim());
       const body = {
         messages: apiMessages,
         ...(specialKey.trim() ? { specialKey: specialKey.trim() } : {}),
@@ -275,7 +321,7 @@ export default function Home() {
 
   // Gate only in production so local runs work without Turnstile.
   const needsVerification = process.env.NODE_ENV === "production" && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const isPrivileged = Boolean(specialKey.trim() || customGroqKey.trim());
+  const isPrivileged = Boolean((specialKey.trim() && isVipValid) || customGroqKey.trim());
   const isVerified = isPrivileged || !needsVerification || !!turnstileToken || isSessionVerified.current;
 
   return (
@@ -395,33 +441,55 @@ export default function Home() {
                         <p className="text-[15px] text-white font-medium flex items-center gap-1.5">
                           <span>👑</span> VIP Passkey
                         </p>
-                        {specialKey.trim() && (
+                        {isVipValid && (
                           <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
-                            VIP Active
+                            ✓ VIP Active
                           </span>
                         )}
                       </div>
                       <p className="text-[13px] text-gray-400 mt-1">
-                        Enter special passkey (e.g. <span className="text-purple-400 font-mono">7873ankit8249</span>) for reserved VIP access with zero limits and no bot checks.
+                        Enter your private VIP passkey for reserved access with zero rate limits or bot checks.
                       </p>
                       <div className="flex gap-2 mt-2">
                         <input
                           type="password"
-                          placeholder="Enter special passkey..."
-                          value={specialKey}
-                          onChange={(e) => setSpecialKey(e.target.value)}
+                          placeholder="Enter VIP passkey..."
+                          value={inputSpecialKey}
+                          onChange={(e) => {
+                            setInputSpecialKey(e.target.value);
+                            setPasskeyMessage({ text: "", isError: false });
+                          }}
                           className="flex-1 px-3.5 py-2.5 bg-[#141420] border border-[#2a2a3e] rounded-xl text-white text-[14px] focus:outline-none focus:border-purple-500 transition-colors"
                         />
-                        {specialKey && (
+                        <button
+                          type="button"
+                          onClick={() => verifyPasskeyWithServer(inputSpecialKey)}
+                          disabled={isVerifyingPasskey || !inputSpecialKey.trim()}
+                          className="px-4 py-2.5 text-xs bg-purple-600 hover:bg-purple-500 disabled:bg-[#2a2a3e] disabled:text-gray-500 text-white font-medium rounded-xl transition-colors"
+                        >
+                          {isVerifyingPasskey ? "Checking..." : "Save"}
+                        </button>
+                        {isVipValid && (
                           <button
                             type="button"
-                            onClick={() => setSpecialKey("")}
+                            onClick={() => {
+                              setSpecialKey("");
+                              setInputSpecialKey("");
+                              setIsVipValid(false);
+                              setPasskeyMessage({ text: "", isError: false });
+                              localStorage.removeItem("gptoss_special_key");
+                            }}
                             className="px-3 py-2.5 text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors"
                           >
-                            Clear
+                            Remove
                           </button>
                         )}
                       </div>
+                      {passkeyMessage.text && (
+                        <p className={`text-xs mt-1.5 ${passkeyMessage.isError ? "text-red-400" : "text-emerald-400"}`}>
+                          {passkeyMessage.text}
+                        </p>
+                      )}
                     </div>
 
                     <div>
@@ -442,23 +510,36 @@ export default function Home() {
                         <input
                           type="password"
                           placeholder="gsk_..."
-                          value={customGroqKey}
-                          onChange={(e) => {
-                            setCustomGroqKey(e.target.value);
-                            setTempCustomKey(e.target.value);
-                          }}
+                          value={settingsGroqKeyInput}
+                          onChange={(e) => setSettingsGroqKeyInput(e.target.value)}
                           className="flex-1 px-3.5 py-2.5 bg-[#141420] border border-[#2a2a3e] rounded-xl text-white text-[14px] focus:outline-none focus:border-purple-500 transition-colors"
                         />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const trimmed = settingsGroqKeyInput.trim();
+                            if (trimmed.startsWith("gsk_")) {
+                              setCustomGroqKey(trimmed);
+                              setHomeGroqKeyInput(trimmed);
+                            } else {
+                              alert("Please enter a valid Groq API key starting with 'gsk_'");
+                            }
+                          }}
+                          className="px-4 py-2.5 text-xs bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-xl transition-colors"
+                        >
+                          Save
+                        </button>
                         {customGroqKey && (
                           <button
                             type="button"
                             onClick={() => {
                               setCustomGroqKey("");
-                              setTempCustomKey("");
+                              setSettingsGroqKeyInput("");
+                              setHomeGroqKeyInput("");
                             }}
                             className="px-3 py-2.5 text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors"
                           >
-                            Clear
+                            Remove
                           </button>
                         )}
                       </div>
@@ -555,14 +636,16 @@ export default function Home() {
                       type="button"
                       onClick={() => {
                         setCustomGroqKey("");
-                        setTempCustomKey("");
+                        setHomeGroqKeyInput("");
+                        setSettingsGroqKeyInput("");
+                        localStorage.removeItem("gptoss_custom_groq_key");
                       }}
                       className="ml-3 text-red-400 hover:text-red-300 underline font-medium"
                     >
                       Remove
                     </button>
                   </div>
-                ) : specialKey.trim() ? (
+                ) : (specialKey.trim() && isVipValid) ? (
                   <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-950/30 border border-emerald-500/40 rounded-2xl text-xs text-emerald-200 backdrop-blur-md">
                     <span className="flex items-center gap-2">
                       <span>👑</span>
@@ -570,63 +653,66 @@ export default function Home() {
                     </span>
                     <button
                       type="button"
-                      onClick={() => setSpecialKey("")}
+                      onClick={() => {
+                        setSpecialKey("");
+                        setInputSpecialKey("");
+                        setIsVipValid(false);
+                        localStorage.removeItem("gptoss_special_key");
+                      }}
                       className="ml-3 text-red-400 hover:text-red-300 underline font-medium"
                     >
                       Clear
                     </button>
                   </div>
                 ) : (
-                  <div>
-                    {!showCustomKeyCard ? (
+                  <div className="p-3.5 bg-[#12121c]/90 border border-[#2a2a3e] rounded-2xl backdrop-blur-md text-left shadow-lg shadow-black/30">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                        <FaKey size={11} className="text-purple-400" /> Have your own Groq API Key? Add it here for unlimited solo access
+                      </label>
+                      <a
+                        href="https://console.groq.com"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[11px] text-purple-400 hover:text-purple-300 underline"
+                      >
+                        Get free key ↗
+                      </a>
+                    </div>
+                    <p className="text-[11px] text-gray-400 mb-2">
+                      Use your own key from console.groq.com. Stored locally in your browser. All chats & summaries will run on your key with zero server limits.
+                    </p>
+                    <div className="flex gap-2">
+                      <input
+                        type="password"
+                        placeholder="Paste your gsk_... key here"
+                        value={homeGroqKeyInput}
+                        onChange={(e) => {
+                          setHomeGroqKeyInput(e.target.value);
+                          setGroqKeyMessage("");
+                        }}
+                        className="flex-1 px-3 py-2 text-xs bg-[#0b0b12] border border-[#2a2a3e] rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-purple-500 transition-colors"
+                      />
                       <button
                         type="button"
-                        onClick={() => setShowCustomKeyCard(true)}
-                        className="text-xs text-gray-500 hover:text-purple-300 transition-colors flex items-center justify-center gap-1.5 mx-auto"
+                        onClick={() => {
+                          const trimmed = homeGroqKeyInput.trim();
+                          if (trimmed.startsWith("gsk_")) {
+                            setCustomGroqKey(trimmed);
+                            setSettingsGroqKeyInput(trimmed);
+                            localStorage.setItem("gptoss_custom_groq_key", trimmed);
+                            setGroqKeyMessage("");
+                          } else {
+                            setGroqKeyMessage("Key must start with 'gsk_'");
+                          }
+                        }}
+                        className="px-4 py-2 text-xs bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-xl transition-colors shadow-md shadow-purple-600/20"
                       >
-                        <FaKey size={11} className="text-purple-400" /> Have your own Groq API Key? Add it here for unlimited solo access
+                        Save
                       </button>
-                    ) : (
-                      <div className="p-3.5 bg-[#12121c]/95 border border-[#2a2a3e] rounded-2xl backdrop-blur-md text-left">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <label className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
-                            <FaKey size={11} className="text-purple-400" /> Add Your Own Groq API Key
-                          </label>
-                          <button
-                            type="button"
-                            onClick={() => setShowCustomKeyCard(false)}
-                            className="text-[11px] text-gray-400 hover:text-white"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                        <p className="text-[11px] text-gray-400 mb-2">
-                          Enter your Groq key from <a href="https://console.groq.com" target="_blank" rel="noreferrer" className="text-purple-400 underline">console.groq.com</a>. Stored only in your browser. All chats & summaries will use only your key with zero server rate limits.
-                        </p>
-                        <div className="flex gap-2">
-                          <input
-                            type="password"
-                            placeholder="Paste gsk_... key here"
-                            value={tempCustomKey}
-                            onChange={(e) => setTempCustomKey(e.target.value)}
-                            className="flex-1 px-3 py-1.5 text-xs bg-[#0b0b12] border border-[#2a2a3e] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => {
-                              if (tempCustomKey.trim().startsWith("gsk_")) {
-                                setCustomGroqKey(tempCustomKey.trim());
-                                setShowCustomKeyCard(false);
-                              } else {
-                                alert("Please enter a valid Groq API key starting with 'gsk_'");
-                              }
-                            }}
-                            className="px-3.5 py-1.5 text-xs bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-xl transition-colors"
-                          >
-                            Save Key
-                          </button>
-                        </div>
-                      </div>
+                    </div>
+                    {groqKeyMessage && (
+                      <p className="text-[11px] text-red-400 mt-1">{groqKeyMessage}</p>
                     )}
                   </div>
                 )}

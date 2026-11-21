@@ -583,6 +583,12 @@ async function handleRequest(request) {
             const body = await request.json();
             let newSessionId = null;
 
+            // Direct passkey verification endpoint
+            if (body?.action === 'verify-passkey') {
+                const isMatch = Boolean(body.passkey && body.passkey.trim() === ADMIN_SPECIAL_KEY);
+                return NextResponse.json({ valid: isMatch }, { status: isMatch ? 200 : 401 });
+            }
+
             // Check for VIP special key or personal user Groq key
             const specialKey = (request.headers.get("x-special-key") || body?.specialKey || "").trim();
             const customGroqKey = (request.headers.get("x-custom-groq-key") || body?.customGroqKey || "").trim();
@@ -705,6 +711,12 @@ async function handleRequest(request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const verifyPasskey = searchParams.get('verifyPasskey');
+    if (verifyPasskey !== null) {
+        const isMatch = Boolean(verifyPasskey && verifyPasskey.trim() === ADMIN_SPECIAL_KEY);
+        return NextResponse.json({ valid: isMatch }, { status: isMatch ? 200 : 401 });
+    }
+
     const codeInput = searchParams.get('code');
     const textInput = searchParams.get('text');
 
