@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "next lint"
   },
+  "engines": {
+    "node": "26.x"
+  },
   "dependencies": {
     "@marsidev/react-turnstile": "^1.5.3",
     "@upstash/ratelimit": "^2.0.8",
