@@ -5,7 +5,7 @@ import { IoSettingsSharp } from "react-icons/io5";
 import { IoClose } from "react-icons/io5";
 import { GridScan } from "./GridScan";
 import { HeroHighlight, Highlight } from "./hero-highlight";
-import { FaLinkedin, FaTwitter, FaGithub } from "react-icons/fa";
+import { FaLinkedin, FaTwitter, FaGithub, FaKey } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
 import { v4 as uuidv4 } from "uuid";
 import { HoverBorderGradient } from "./hover-border-gradient";
@@ -29,11 +29,15 @@ export default function Home() {
   // Keep verification scoped to the current tab only.
   const isSessionVerified = useRef(false);
 
-  // ─── Settings state ───
+  // ─── Settings & Custom API Key state ───
   const [showSettings, setShowSettings] = useState(false);
   const [streaming, setStreaming] = useState(true);
   const [animationsEnabled, setAnimationsEnabled] = useState(false);
   const [fontSize, setFontSize] = useState("medium");
+  const [specialKey, setSpecialKey] = useState("");
+  const [customGroqKey, setCustomGroqKey] = useState("");
+  const [showCustomKeyCard, setShowCustomKeyCard] = useState(false);
+  const [tempCustomKey, setTempCustomKey] = useState("");
 
   const chatEndRef = useRef(null);
 
@@ -49,7 +53,16 @@ export default function Home() {
       const verified = sessionStorage.getItem(SESSION_VERIFIED_KEY) === "1";
       isSessionVerified.current = verified;
 
-      // Load saved settings
+      // Load saved settings & keys
+      const savedSpecial = localStorage.getItem("gptoss_special_key") || "";
+      if (savedSpecial) setSpecialKey(savedSpecial);
+
+      const savedCustomKey = localStorage.getItem("gptoss_custom_groq_key") || "";
+      if (savedCustomKey) {
+        setCustomGroqKey(savedCustomKey);
+        setTempCustomKey(savedCustomKey);
+      }
+
       const saved = localStorage.getItem("gptoss_settings");
       if (saved) {
         try {
@@ -62,7 +75,7 @@ export default function Home() {
     }
   }, []);
 
-  // Persist settings
+  // Persist settings & keys
   useEffect(() => {
     if (typeof window !== "undefined") {
       localStorage.setItem(
@@ -71,6 +84,20 @@ export default function Home() {
       );
     }
   }, [streaming, animationsEnabled, fontSize]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (specialKey.trim()) localStorage.setItem("gptoss_special_key", specialKey.trim());
+      else localStorage.removeItem("gptoss_special_key");
+    }
+  }, [specialKey]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (customGroqKey.trim()) localStorage.setItem("gptoss_custom_groq_key", customGroqKey.trim());
+      else localStorage.removeItem("gptoss_custom_groq_key");
+    }
+  }, [customGroqKey]);
 
   const fetchResponse = async () => {
     if (!userInput.trim()) return;
@@ -102,15 +129,24 @@ export default function Home() {
         apiMessages.unshift(allMapped[i]);
       }
 
-      // Only send turnstile token on first request; session cookie handles the rest
-      const body = { messages: apiMessages };
-      if (!isSessionVerified.current && turnstileToken) {
+      // Only send turnstile token on first request; session cookie handles the rest. Privileged keys bypass Turnstile.
+      const hasPrivilege = Boolean(specialKey.trim() || customGroqKey.trim());
+      const body = {
+        messages: apiMessages,
+        ...(specialKey.trim() ? { specialKey: specialKey.trim() } : {}),
+        ...(customGroqKey.trim() ? { customGroqKey: customGroqKey.trim() } : {}),
+      };
+      if (!isSessionVerified.current && turnstileToken && !hasPrivilege) {
         body.turnstileToken = turnstileToken;
       }
 
       const response = await fetch('/api', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(specialKey.trim() ? { 'x-special-key': specialKey.trim() } : {}),
+          ...(customGroqKey.trim() ? { 'x-custom-groq-key': customGroqKey.trim() } : {}),
+        },
         body: JSON.stringify(body)
       });
 
@@ -239,7 +275,8 @@ export default function Home() {
 
   // Gate only in production so local runs work without Turnstile.
   const needsVerification = process.env.NODE_ENV === "production" && !!process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY;
-  const isVerified = !needsVerification || !!turnstileToken || isSessionVerified.current;
+  const isPrivileged = Boolean(specialKey.trim() || customGroqKey.trim());
+  const isVerified = isPrivileged || !needsVerification || !!turnstileToken || isSessionVerified.current;
 
   return (
     <div className="flex flex-col h-[100dvh] text-white bg-[#0a0a0a] overflow-hidden">
@@ -288,7 +325,7 @@ export default function Home() {
                 </div>
 
                 {/* Settings Body */}
-                <div className="px-6 py-5 space-y-6">
+                <div className="px-6 py-5 space-y-6 max-h-[75vh] overflow-y-auto">
 
                   {/* Response Streaming */}
                   <div className="flex items-center justify-between">
@@ -347,6 +384,86 @@ export default function Home() {
                       ))}
                     </div>
                   </div>
+
+                  {/* Divider */}
+                  <div className="border-t border-[#2a2a3e]" />
+
+                  {/* VIP Passkey & Custom API Keys */}
+                  <div className="space-y-5">
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[15px] text-white font-medium flex items-center gap-1.5">
+                          <span>👑</span> VIP Passkey
+                        </p>
+                        {specialKey.trim() && (
+                          <span className="text-[11px] font-semibold text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            VIP Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[13px] text-gray-400 mt-1">
+                        Enter special passkey (e.g. <span className="text-purple-400 font-mono">7873ankit8249</span>) for reserved VIP access with zero limits and no bot checks.
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="password"
+                          placeholder="Enter special passkey..."
+                          value={specialKey}
+                          onChange={(e) => setSpecialKey(e.target.value)}
+                          className="flex-1 px-3.5 py-2.5 bg-[#141420] border border-[#2a2a3e] rounded-xl text-white text-[14px] focus:outline-none focus:border-purple-500 transition-colors"
+                        />
+                        {specialKey && (
+                          <button
+                            type="button"
+                            onClick={() => setSpecialKey("")}
+                            className="px-3 py-2.5 text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="flex items-center justify-between">
+                        <p className="text-[15px] text-white font-medium flex items-center gap-1.5">
+                          <FaKey size={13} className="text-purple-400" /> Personal Groq API Key
+                        </p>
+                        {customGroqKey.trim() && (
+                          <span className="text-[11px] font-semibold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full border border-purple-500/20">
+                            Solo Active
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[13px] text-gray-400 mt-1">
+                        Use your own key from <a href="https://console.groq.com" target="_blank" rel="noreferrer" className="text-purple-400 underline">console.groq.com</a>. Stored locally in your browser. Bypasses all server quotas and rate limits.
+                      </p>
+                      <div className="flex gap-2 mt-2">
+                        <input
+                          type="password"
+                          placeholder="gsk_..."
+                          value={customGroqKey}
+                          onChange={(e) => {
+                            setCustomGroqKey(e.target.value);
+                            setTempCustomKey(e.target.value);
+                          }}
+                          className="flex-1 px-3.5 py-2.5 bg-[#141420] border border-[#2a2a3e] rounded-xl text-white text-[14px] focus:outline-none focus:border-purple-500 transition-colors"
+                        />
+                        {customGroqKey && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setCustomGroqKey("");
+                              setTempCustomKey("");
+                            }}
+                            className="px-3 py-2.5 text-xs text-red-400 hover:text-red-300 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Footer */}
@@ -380,7 +497,7 @@ export default function Home() {
               >
                 No Login. No Signup. 100% Free. No Logs. Completely Anonymous.<br />
                 Powered by the{" "}
-                <Highlight className="text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 120B</Highlight> API.
+                <Highlight className="text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 20B</Highlight> API.
               </motion.p>
 
               <motion.div
@@ -421,8 +538,102 @@ export default function Home() {
                 </HoverBorderGradient>
               </motion.div>
 
+              {/* Personal Groq API Key Box on Home Page */}
+              <motion.div
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 1.2, ease: [0.4, 0.0, 0.2, 1] }}
+                className="w-full max-w-xl mt-3.5"
+              >
+                {customGroqKey.trim() ? (
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-purple-950/30 border border-purple-500/40 rounded-2xl text-xs text-purple-200 backdrop-blur-md">
+                    <span className="flex items-center gap-2">
+                      <FaKey className="text-purple-400" />
+                      <span><strong>Personal Key Active:</strong> {customGroqKey.slice(0, 7)}...{customGroqKey.slice(-4)} (Solo usage & zero server limits)</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setCustomGroqKey("");
+                        setTempCustomKey("");
+                      }}
+                      className="ml-3 text-red-400 hover:text-red-300 underline font-medium"
+                    >
+                      Remove
+                    </button>
+                  </div>
+                ) : specialKey.trim() ? (
+                  <div className="flex items-center justify-between px-4 py-2.5 bg-emerald-950/30 border border-emerald-500/40 rounded-2xl text-xs text-emerald-200 backdrop-blur-md">
+                    <span className="flex items-center gap-2">
+                      <span>👑</span>
+                      <span><strong>VIP Access Active:</strong> Unlimited usage with zero rate limits or bot checks.</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSpecialKey("")}
+                      className="ml-3 text-red-400 hover:text-red-300 underline font-medium"
+                    >
+                      Clear
+                    </button>
+                  </div>
+                ) : (
+                  <div>
+                    {!showCustomKeyCard ? (
+                      <button
+                        type="button"
+                        onClick={() => setShowCustomKeyCard(true)}
+                        className="text-xs text-gray-500 hover:text-purple-300 transition-colors flex items-center justify-center gap-1.5 mx-auto"
+                      >
+                        <FaKey size={11} className="text-purple-400" /> Have your own Groq API Key? Add it here for unlimited solo access
+                      </button>
+                    ) : (
+                      <div className="p-3.5 bg-[#12121c]/95 border border-[#2a2a3e] rounded-2xl backdrop-blur-md text-left">
+                        <div className="flex items-center justify-between mb-1.5">
+                          <label className="text-xs font-semibold text-gray-200 flex items-center gap-1.5">
+                            <FaKey size={11} className="text-purple-400" /> Add Your Own Groq API Key
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() => setShowCustomKeyCard(false)}
+                            className="text-[11px] text-gray-400 hover:text-white"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-gray-400 mb-2">
+                          Enter your Groq key from <a href="https://console.groq.com" target="_blank" rel="noreferrer" className="text-purple-400 underline">console.groq.com</a>. Stored only in your browser. All chats & summaries will use only your key with zero server rate limits.
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="password"
+                            placeholder="Paste gsk_... key here"
+                            value={tempCustomKey}
+                            onChange={(e) => setTempCustomKey(e.target.value)}
+                            className="flex-1 px-3 py-1.5 text-xs bg-[#0b0b12] border border-[#2a2a3e] rounded-xl text-white placeholder-gray-600 focus:outline-none focus:border-purple-500"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (tempCustomKey.trim().startsWith("gsk_")) {
+                                setCustomGroqKey(tempCustomKey.trim());
+                                setShowCustomKeyCard(false);
+                              } else {
+                                alert("Please enter a valid Groq API key starting with 'gsk_'");
+                              }
+                            }}
+                            className="px-3.5 py-1.5 text-xs bg-purple-600 hover:bg-purple-500 text-white font-medium rounded-xl transition-colors"
+                          >
+                            Save Key
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </motion.div>
+
               {/* Single stable Turnstile mount for the whole tab */}
-              {needsVerification && !isSessionVerified.current && (
+              {needsVerification && !isSessionVerified.current && !isPrivileged && (
                 <div className="mt-3 flex justify-center">
                   <Turnstile
                     ref={turnstileRef}
@@ -552,7 +763,7 @@ export default function Home() {
             </button>
           </div>
 
-          {needsVerification && !isSessionVerified.current && (
+          {needsVerification && !isSessionVerified.current && !isPrivileged && (
             <div className="max-w-3xl mx-auto flex justify-center mt-1.5">
               <span className="flex items-center gap-1.5 text-[11px] text-gray-600">
                 <svg width="12" height="12" viewBox="0 0 16 16" fill="none"><path d="M8 0a8 8 0 100 16A8 8 0 008 0zm3.5 6.5l-4 4a.75.75 0 01-1.06 0l-2-2a.75.75 0 111.06-1.06L7 8.94l3.47-3.47a.75.75 0 111.06 1.06z" fill="#f38020" /></svg>

@@ -2,7 +2,7 @@ import "./globals.css";
 
 export const metadata = {
   title: "Uncensored AI",
-  description: "Free, uncensored AI with no login, no signup, and no logs. Powered by GPT-OSS 120B. Ask anything — we don't judge.",
+  description: "Free, uncensored AI with no login, no signup, and no logs. Powered by GPT-OSS 20B. Ask anything — we don't judge.",
   icons: {
     icon: "/favicon.ico",
   },
