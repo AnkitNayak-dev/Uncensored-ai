@@ -578,7 +578,7 @@ export default function Home() {
               >
                 No Login. No Signup. 100% Free. No Logs. Completely Anonymous.<br />
                 Powered by the{" "}
-                <Highlight className="text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 20B</Highlight> API.
+                <Highlight className="text-white text-xl font-bold font-serif">Private, uncensored AI GPT-OSS 120B</Highlight> API.
               </motion.p>
 
               <motion.div

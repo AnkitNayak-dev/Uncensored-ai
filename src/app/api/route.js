@@ -13,11 +13,11 @@ import { Redis } from "@upstash/redis";
 // GROQ KEY ROTATION
 // =========================
 
-// Provider configs: uncensored chat uses openai/gpt-oss-20b across 3 keys
+// Provider configs: uncensored chat uses openai/gpt-oss-120b across 3 keys
 const PROVIDERS = {
     groq: {
         baseURL: 'https://api.groq.com/openai/v1',
-        model: 'openai/gpt-oss-20b',
+        model: 'openai/gpt-oss-120b',
     },
 };
 
@@ -284,7 +284,7 @@ Return all required files.
 // =========================
 async function generateCodeCompletion(messages) {
     const { result: stream, keyIndex, provider } = await groqCreateWithRotation({
-        model: "openai/gpt-oss-20b",
+        model: "openai/gpt-oss-120b",
         messages: messages,
         temperature: 0.2,
         top_p: 1,
@@ -477,7 +477,7 @@ Response style:
         // User provided their own Groq API key: call Groq directly (solo, zero shared quota consumed)
         const client = new OpenAI({ apiKey: customKey, baseURL: 'https://api.groq.com/openai/v1', maxRetries: 1 });
         apiStream = await client.chat.completions.create({
-            model: "openai/gpt-oss-20b",
+            model: "openai/gpt-oss-120b",
             messages,
             temperature: 0.7,
             top_p: 1,
@@ -489,7 +489,7 @@ Response style:
         // Admin with dedicated reserved key
         const client = new OpenAI({ apiKey: process.env.GROQ_ADMIN_API_KEY.trim(), baseURL: 'https://api.groq.com/openai/v1', maxRetries: 1 });
         apiStream = await client.chat.completions.create({
-            model: "openai/gpt-oss-20b",
+            model: "openai/gpt-oss-120b",
             messages,
             temperature: 0.7,
             top_p: 1,
@@ -500,7 +500,7 @@ Response style:
     } else {
         // Standard public traffic: round-robin across shared server keys
         const rotated = await groqCreateWithRotation({
-            model: "openai/gpt-oss-20b",
+            model: "openai/gpt-oss-120b",
             messages,
             temperature: 0.7,
             top_p: 1,
